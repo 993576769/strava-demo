@@ -1,4 +1,19 @@
 module.exports = {
+  getOptionalEnv: function (key, fallback) {
+    var value = $os.getenv(key)
+    return value || fallback
+  },
+
+  getWorkerSecret: function () {
+    return this.getOptionalEnv("ART_WORKER_SECRET", "local-art-worker-secret")
+  },
+
+  assertWorkerSecret: function (providedSecret) {
+    if (String(providedSecret || "") !== this.getWorkerSecret()) {
+      throw new ForbiddenError("Invalid art worker secret")
+    }
+  },
+
   getRequestedProvider: function (forceProvider) {
     if (forceProvider) {
       return forceProvider
@@ -28,9 +43,27 @@ module.exports = {
     }
   },
 
-  getJobContext: function (e, jobId) {
-    var userId = e.auth.id
-    var job = e.app.findFirstRecordByFilter(
+  getStreamRecord: function (app, userId, streamId) {
+    if (!streamId) {
+      return null
+    }
+
+    try {
+      return app.findFirstRecordByFilter(
+        "activity_streams",
+        "id = {:streamId} && user = {:userId}",
+        {
+          streamId: streamId,
+          userId: userId,
+        }
+      )
+    } catch (_) {
+      return null
+    }
+  },
+
+  getJobContextByUserId: function (app, userId, jobId) {
+    var job = app.findFirstRecordByFilter(
       "art_jobs",
       "id = {:jobId} && user = {:userId}",
       {
@@ -39,7 +72,7 @@ module.exports = {
       }
     )
 
-    var activity = e.app.findFirstRecordByFilter(
+    var activity = app.findFirstRecordByFilter(
       "activities",
       "id = {:activityId} && user = {:userId}",
       {
@@ -48,27 +81,25 @@ module.exports = {
       }
     )
 
-    var stream = null
-    var streamId = job.getString("stream")
-    if (streamId) {
-      try {
-        stream = e.app.findFirstRecordByFilter(
-          "activity_streams",
-          "id = {:streamId} && user = {:userId}",
-          {
-            streamId: streamId,
-            userId: userId,
-          }
-        )
-      } catch (_) {}
-    }
-
     return {
       userId: userId,
       job: job,
       activity: activity,
-      stream: stream,
+      stream: this.getStreamRecord(app, userId, job.getString("stream")),
     }
+  },
+
+  getJobContextById: function (app, jobId) {
+    var job = app.findFirstRecordByFilter(
+      "art_jobs",
+      "id = {:jobId}",
+      {
+        jobId: jobId,
+      }
+    )
+
+    var userId = job.getString("user")
+    return this.getJobContextByUserId(app, userId, jobId)
   },
 
   getCanvasSize: function (aspectRatio) {
@@ -81,8 +112,86 @@ module.exports = {
     return mockArt.subtitleText(activityRecord)
   },
 
-  createResultRecord: function (e, params) {
-    var collection = e.app.findCollectionByNameOrId("art_results")
+  sanitizeMetadataValue: function (value, depth) {
+    if (depth > 4) {
+      return null
+    }
+
+    if (typeof value === "string") {
+      return value.length > 2000 ? value.slice(0, 2000) + "..." : value
+    }
+
+    if (typeof value === "number" || typeof value === "boolean" || value === null) {
+      return value
+    }
+
+    if (Array.isArray(value)) {
+      return value.slice(0, 20).map(function (item) {
+        return module.exports.sanitizeMetadataValue(item, depth + 1)
+      })
+    }
+
+    if (value && typeof value === "object") {
+      var output = {}
+      var keys = Object.keys(value).slice(0, 20)
+      for (var i = 0; i < keys.length; i += 1) {
+        var key = keys[i]
+        output[key] = this.sanitizeMetadataValue(value[key], depth + 1)
+      }
+      return output
+    }
+
+    return String(value)
+  },
+
+  buildResultFilename: function (activityRecord, jobRecord, stylePreset, mimeType) {
+    var routeBase = require(__hooks + "/route-base.js")
+    var baseName = [
+      activityRecord.getString("sport_type") || "activity",
+      activityRecord.id,
+      stylePreset,
+      "art-result",
+    ].join("-")
+
+    return routeBase.resolveFilename(baseName, mimeType)
+  },
+
+  persistJimengImageAsset: function (jobRecord, activityRecord, stylePreset, imageAsset) {
+    if (imageAsset.kind !== "base64") {
+      return {
+        imageDataUri: imageAsset.value,
+        thumbnailDataUri: imageAsset.value,
+        fileSize: imageAsset.value.length,
+        mimeType: "image/png",
+      }
+    }
+
+    var routeBase = require(__hooks + "/route-base.js")
+    var mimeType = "image/png"
+
+    if (routeBase.getUploadProvider() !== "s3") {
+      throw new BadRequestError("Jimeng base64 output requires ART_ASSET_UPLOAD_PROVIDER=s3")
+    }
+
+    var uploaded = routeBase.uploadToS3(
+      imageAsset.value,
+      mimeType,
+      this.buildResultFilename(activityRecord, jobRecord, stylePreset, mimeType),
+      jobRecord.getString("user"),
+      jobRecord.id,
+      "art-results"
+    )
+
+    return {
+      imageDataUri: uploaded.url,
+      thumbnailDataUri: uploaded.url,
+      fileSize: imageAsset.value.length,
+      mimeType: mimeType,
+    }
+  },
+
+  createResultRecord: function (app, params) {
+    var collection = app.findCollectionByNameOrId("art_results")
     var record = new Record(collection)
 
     record.set("job", params.jobId)
@@ -99,12 +208,29 @@ module.exports = {
     record.set("subtitle_snapshot", params.subtitle || "")
     record.set("metadata_json", params.metadata || {})
     record.set("visibility", "private")
-    e.app.save(record)
+    app.save(record)
 
     return record
   },
 
-  markJobProcessing: function (e, job, workerRef) {
+  ensureRouteBaseReady: function (job) {
+    if (!job.getString("route_base_image_url")) {
+      throw new BadRequestError("Missing route base image URL")
+    }
+  },
+
+  markJobPending: function (app, job) {
+    job.set("status", "pending")
+    job.set("queued_at", new Date().toISOString())
+    job.set("started_at", "")
+    job.set("finished_at", "")
+    job.set("worker_ref", "")
+    job.set("error_code", "")
+    job.set("error_message", "")
+    app.save(job)
+  },
+
+  markJobProcessing: function (app, job, workerRef) {
     if (job.getString("status") === "canceled") {
       throw new BadRequestError("Canceled jobs can't be rendered")
     }
@@ -116,23 +242,23 @@ module.exports = {
     }
     job.set("worker_ref", workerRef)
     job.set("attempt_count", (job.getInt("attempt_count") || 0) + 1)
-    e.app.save(job)
+    app.save(job)
   },
 
-  markJobSucceeded: function (e, job) {
+  markJobSucceeded: function (app, job) {
     job.set("status", "succeeded")
     job.set("finished_at", new Date().toISOString())
     job.set("error_code", "")
     job.set("error_message", "")
-    e.app.save(job)
+    app.save(job)
   },
 
-  markJobFailed: function (e, job, code, err) {
+  markJobFailed: function (app, job, code, err) {
     job.set("status", "failed")
     job.set("error_code", code)
     job.set("error_message", err && err.message ? err.message : code)
     job.set("finished_at", new Date().toISOString())
-    e.app.save(job)
+    app.save(job)
   },
 
   buildJimengAssets: function (jobRecord, activityRecord, stylePreset, renderOptions) {
@@ -146,18 +272,15 @@ module.exports = {
     var size = this.getCanvasSize(renderOptions.aspectRatio)
     var title = activityRecord.getString("name") || "Untitled activity"
     var subtitle = this.buildSubtitle(activityRecord)
-    var mimeType = renderResult.imageAsset.kind === "base64" ? "image/png" : "image/png"
-    var imageData = renderResult.imageAsset.kind === "base64"
-      ? "data:" + mimeType + ";base64," + renderResult.imageAsset.value
-      : renderResult.imageAsset.value
+    var persistedImage = this.persistJimengImageAsset(jobRecord, activityRecord, stylePreset, renderResult.imageAsset)
 
     return {
-      imageDataUri: imageData,
-      thumbnailDataUri: imageData,
+      imageDataUri: persistedImage.imageDataUri,
+      thumbnailDataUri: persistedImage.thumbnailDataUri,
       width: size.width,
       height: size.height,
-      fileSize: renderResult.imageAsset.value.length,
-      mimeType: mimeType,
+      fileSize: persistedImage.fileSize,
+      mimeType: persistedImage.mimeType,
       title: title,
       subtitle: subtitle,
       metadata: {
@@ -170,7 +293,11 @@ module.exports = {
         includeStats: renderOptions.includeStats,
         routeBaseImageUrl: routeBaseImageUrl,
         outputKind: renderResult.imageAsset.kind,
-        rawResult: renderResult.rawResult && renderResult.rawResult.Result ? renderResult.rawResult.Result : null,
+        imageUrl: persistedImage.imageDataUri,
+        rawResult: this.sanitizeMetadataValue(
+          renderResult.rawResult && renderResult.rawResult.Result ? renderResult.rawResult.Result : renderResult.rawResult || null,
+          0
+        ),
       },
     }
   },
@@ -182,11 +309,9 @@ module.exports = {
     return assets
   },
 
-  renderJob: function (e, options) {
+  processContext: function (app, context, options) {
     var art = require(__hooks + "/art.js")
-    var jobId = e.request.pathValue("id")
-    var context = this.getJobContext(e, jobId)
-    var existingResult = this.getExistingResult(e.app, context.userId, jobId)
+    var existingResult = this.getExistingResult(app, context.userId, context.job.id)
     if (existingResult) {
       return {
         job: context.job.publicExport(),
@@ -198,18 +323,20 @@ module.exports = {
       }
     }
 
+    this.ensureRouteBaseReady(context.job)
+
     var renderOptions = art.normalizeRenderOptions(context.job.getRaw("render_options_json"))
     var stylePreset = art.normalizeStylePreset(context.job.getString("style_preset"))
     var provider = this.getRequestedProvider(options && options.forceProvider)
 
-    this.markJobProcessing(e, context.job, provider === "jimeng46" ? "jimeng-4.6" : "mock-svg-renderer:v1")
+    this.markJobProcessing(app, context.job, provider === "jimeng46" ? "jimeng-4.6" : "mock-svg-renderer:v1")
 
     try {
       var assets = provider === "jimeng46"
         ? this.buildJimengAssets(context.job, context.activity, stylePreset, renderOptions)
         : this.buildMockAssets(context.activity, context.stream, stylePreset, renderOptions)
 
-      var resultRecord = this.createResultRecord(e, {
+      var resultRecord = this.createResultRecord(app, {
         jobId: context.job.id,
         userId: context.userId,
         activityId: context.activity.id,
@@ -225,7 +352,7 @@ module.exports = {
         metadata: assets.metadata,
       })
 
-      this.markJobSucceeded(e, context.job)
+      this.markJobSucceeded(app, context.job)
 
       return {
         job: context.job.publicExport(),
@@ -234,8 +361,55 @@ module.exports = {
         provider: provider,
       }
     } catch (err) {
-      this.markJobFailed(e, context.job, provider === "jimeng46" ? "jimeng_render_failed" : "mock_render_failed", err)
+      this.markJobFailed(app, context.job, provider === "jimeng46" ? "jimeng_render_failed" : "mock_render_failed", err)
       throw err
     }
+  },
+
+  enqueueJob: function (e) {
+    var context = this.getJobContextByUserId(e.app, e.auth.id, e.request.pathValue("id"))
+    var existingResult = this.getExistingResult(e.app, context.userId, context.job.id)
+    if (existingResult) {
+      return {
+        job: context.job.publicExport(),
+        result: existingResult.publicExport(),
+        reused: true,
+        queued: false,
+        provider: existingResult.getRaw("metadata_json") && existingResult.getRaw("metadata_json").provider
+          ? existingResult.getRaw("metadata_json").provider
+          : "unknown",
+      }
+    }
+
+    this.ensureRouteBaseReady(context.job)
+
+    var currentStatus = context.job.getString("status")
+    if (currentStatus === "processing" || currentStatus === "pending") {
+      return {
+        job: context.job.publicExport(),
+        queued: true,
+        reused: currentStatus === "processing",
+        provider: null,
+      }
+    }
+
+    this.markJobPending(e.app, context.job)
+
+    return {
+      job: context.job.publicExport(),
+      queued: true,
+      reused: false,
+      provider: null,
+    }
+  },
+
+  renderNowForUser: function (e, options) {
+    return this.processContext(e.app, this.getJobContextByUserId(e.app, e.auth.id, e.request.pathValue("id")), options)
+  },
+
+  processQueuedJob: function (e, options) {
+    var body = e.requestInfo().body || {}
+    this.assertWorkerSecret(body.secret || body.workerSecret)
+    return this.processContext(e.app, this.getJobContextById(e.app, e.request.pathValue("id")), options)
   },
 }

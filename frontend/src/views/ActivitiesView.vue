@@ -87,6 +87,8 @@ const eventStatusLabel = (status: string) => {
   }
 }
 
+const eventTimestamp = (value: { occurred_at?: string; created?: string }) => value.occurred_at || value.created || ''
+
 const openActivity = (id: string) => {
   router.push({ name: 'activity-detail', params: { id } })
 }
@@ -377,7 +379,7 @@ onMounted(async () => {
                     </div>
 
                     <p class="shrink-0 text-sm text-[var(--color-text-muted)]">
-                      {{ formatDateTime(event.created) }}
+                      {{ eventTimestamp(event) ? formatDateTime(eventTimestamp(event)) : '暂无时间信息' }}
                     </p>
                   </div>
                 </div>

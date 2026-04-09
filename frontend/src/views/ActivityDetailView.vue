@@ -27,6 +27,7 @@ const selectedPreset = ref<StylePreset>('sketch')
 const selectedAspectRatio = ref<AspectRatio>('portrait')
 const includeTitle = ref(true)
 const createFeedback = ref('')
+let queuePollingTimer: number | null = null
 const routeSubtitle = computed(() => {
   if (!activity.value) return ''
 
@@ -95,6 +96,18 @@ const jobStatusLabel = (status: string) => {
   }
 }
 
+const getJobTimestamp = (job: { queued_at?: string; started_at?: string; finished_at?: string }) => {
+  return job.queued_at || job.started_at || job.finished_at || ''
+}
+
+const hasRouteBaseImageUrl = (job: unknown) => {
+  if (!job || typeof job !== 'object') return false
+
+  return 'route_base_image_url' in job
+    && typeof job.route_base_image_url === 'string'
+    && job.route_base_image_url.length > 0
+}
+
 const loadPage = async () => {
   if (activityId.value) {
     await Promise.all([
@@ -104,6 +117,30 @@ const loadPage = async () => {
       artResultsStore.fetchResultsForActivity(activityId.value),
     ])
   }
+}
+
+const stopQueuePolling = () => {
+  if (queuePollingTimer) {
+    window.clearInterval(queuePollingTimer)
+    queuePollingTimer = null
+  }
+}
+
+const refreshQueueState = async () => {
+  if (!activityId.value) return
+
+  await Promise.all([
+    artJobsStore.fetchJobsForActivity(activityId.value),
+    artResultsStore.fetchResultsForActivity(activityId.value),
+  ])
+}
+
+const ensureQueuePolling = () => {
+  if (queuePollingTimer || !activityId.value) return
+
+  queuePollingTimer = window.setInterval(() => {
+    void refreshQueueState()
+  }, 3000)
 }
 
 const createArtJob = async () => {
@@ -123,7 +160,7 @@ const createArtJob = async () => {
   }
 
   const routeBaseDataUrl = await routeMapRef.value?.exportPngDataUrl()
-  if (routeBaseDataUrl) {
+  if (routeBaseDataUrl && !hasRouteBaseImageUrl(job)) {
     await artJobsStore.uploadRouteBase(
       job.id,
       routeBaseDataUrl,
@@ -131,17 +168,20 @@ const createArtJob = async () => {
     )
   }
 
-  const result = await artResultsStore.renderJob(job.id)
-  await Promise.all([
-    artJobsStore.fetchJobsForActivity(activity.value.id),
-    artResultsStore.fetchResultsForActivity(activity.value.id),
-  ])
+  const queued = await artResultsStore.queueJob(job.id)
+  await refreshQueueState()
 
-  createFeedback.value = result
+  if (artJobsStore.activeJob) {
+    ensureQueuePolling()
+  }
+
+  createFeedback.value = queued?.result
     ? (artJobsStore.lastCreateResult === 'reused'
-        ? `已复用并完成一个现有任务，${getResultRendererLabel(result)}已生成。`
-        : `任务已创建并完成${getResultRendererLabel(result)}生成。`)
-    : '任务已创建，但图片生成失败。'
+        ? `已复用并完成一个现有任务，${getResultRendererLabel(queued.result)}已生成。`
+        : `任务已创建并完成${getResultRendererLabel(queued.result)}生成。`)
+    : (artJobsStore.lastCreateResult === 'reused'
+        ? '已复用现有任务，并加入后台生成队列。'
+        : '任务已创建并加入后台生成队列。')
 }
 
 const openResult = (id: string) => {
@@ -152,7 +192,17 @@ watch(activityId, () => {
   void loadPage()
 }, { immediate: true })
 
+watch(() => artJobsStore.activeJob?.id, (activeJobId) => {
+  if (activeJobId) {
+    ensureQueuePolling()
+    return
+  }
+
+  stopQueuePolling()
+})
+
 onUnmounted(() => {
+  stopQueuePolling()
   activitiesStore.clearCurrentActivity()
   activityStreamsStore.clear()
   artJobsStore.clear()
@@ -313,23 +363,23 @@ onUnmounted(() => {
               <div class="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   class="btn btn-primary"
-                  :disabled="!activity.is_generatable || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.rendering"
+                  :disabled="!activity.is_generatable || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
                   @click="createArtJob"
                 >
-                  <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.rendering" class="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="w-4 h-4 mr-2 animate-spin" />
                   <WandSparkles v-else class="w-4 h-4 mr-2" />
                   {{
                     artJobsStore.creating
                       ? '正在创建任务...'
                       : artJobsStore.uploadingRouteBase
                         ? '正在上传轨迹底稿...'
-                        : artResultsStore.rendering
-                          ? '正在生成图片...'
+                        : artResultsStore.queueing
+                          ? '正在加入队列...'
                           : '生成成品'
                   }}
                 </button>
                 <p class="text-sm text-[var(--color-text-muted)]">
-                  {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由当前渲染 provider 产出成品。' : '当前活动不可生成，按钮已禁用。' }}
+                  {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由后台 worker 异步消费队列并产出成品。' : '当前活动不可生成，按钮已禁用。' }}
                 </p>
               </div>
             </div>
@@ -378,7 +428,7 @@ onUnmounted(() => {
                         </span>
                       </div>
                       <p class="mt-2 text-sm text-[var(--color-text-muted)]">
-                        创建时间：{{ formatDateTime(job.created) }}
+                        排队时间：{{ getJobTimestamp(job) ? formatDateTime(getJobTimestamp(job)) : '暂无时间信息' }}
                       </p>
                       <p v-if="job.error_message" class="mt-2 text-sm text-red-500">
                         {{ job.error_message }}

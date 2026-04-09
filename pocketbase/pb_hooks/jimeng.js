@@ -20,157 +20,58 @@ module.exports = {
     }
 
     return {
-      accessKey: $os.getenv("VOLCENGINE_ACCESS_KEY"),
-      secretKey: $os.getenv("VOLCENGINE_SECRET_KEY"),
-      host: this.getOptionalEnv("JIMENG_API_HOST", "visual.volcengineapi.com"),
-      region: this.getOptionalEnv("JIMENG_API_REGION", "cn-north-1"),
-      service: this.getOptionalEnv("JIMENG_API_SERVICE", "cv"),
-      version: this.getOptionalEnv("JIMENG_API_VERSION", "2022-08-31"),
       submitAction: this.getOptionalEnv("JIMENG_SUBMIT_ACTION", "CVSync2AsyncSubmitTask"),
       queryAction: this.getOptionalEnv("JIMENG_QUERY_ACTION", "CVSync2AsyncGetResult"),
       reqKey: $os.getenv("JIMENG_REQ_KEY"),
       negativePrompt: this.getOptionalEnv("JIMENG_NEGATIVE_PROMPT", ""),
       pollIntervalMs: Math.max(1000, Number(this.getOptionalEnv("JIMENG_POLL_INTERVAL_MS", "3000")) || 3000),
       pollMaxAttempts: Math.max(1, Number(this.getOptionalEnv("JIMENG_POLL_MAX_ATTEMPTS", "20")) || 20),
+      helperHost: this.getOptionalEnv("JIMENG_HELPER_HOST", "127.0.0.1"),
+      helperPort: Math.max(1, Number(this.getOptionalEnv("JIMENG_HELPER_PORT", "3210")) || 3210),
     }
   },
 
-  toUtcDateParts: function (date) {
-    var year = String(date.getUTCFullYear())
-    var month = String(date.getUTCMonth() + 1).padStart(2, "0")
-    var day = String(date.getUTCDate()).padStart(2, "0")
-    var hour = String(date.getUTCHours()).padStart(2, "0")
-    var minute = String(date.getUTCMinutes()).padStart(2, "0")
-    var second = String(date.getUTCSeconds()).padStart(2, "0")
-
-    return {
-      shortDate: year + month + day,
-      amzDate: year + month + day + "T" + hour + minute + second + "Z",
-    }
-  },
-
-  encodeRFC3986: function (value) {
-    return encodeURIComponent(String(value))
-      .replace(/[!'()*]/g, function (match) {
-        return "%" + match.charCodeAt(0).toString(16).toUpperCase()
-      })
-  },
-
-  buildCanonicalQuery: function (query) {
-    var keys = Object.keys(query || {}).sort()
-    return keys
-      .map(function (key) {
-        return this.encodeRFC3986(key) + "=" + this.encodeRFC3986(query[key])
-      }, this)
-      .join("&")
-  },
-
-  buildCanonicalHeaders: function (headers) {
-    var normalized = {}
-    Object.keys(headers || {}).forEach(function (key) {
-      normalized[String(key).toLowerCase()] = String(headers[key]).trim().replace(/\s+/g, " ")
-    })
-
-    var keys = Object.keys(normalized).sort()
-    return {
-      canonicalHeaders: keys
-        .map(function (key) {
-          return key + ":" + normalized[key]
-        })
-        .join("\n") + "\n",
-      signedHeaders: keys.join(";"),
-    }
-  },
-
-  buildSignatureHeaders: function (config, bodyString) {
-    var requestTime = this.toUtcDateParts(new Date())
-    var query = {
-      Action: config.action,
-      Version: config.version,
-    }
-    var headers = {
-      "content-type": "application/json",
-      host: config.host,
-      "x-date": requestTime.amzDate,
-    }
-    var canonicalQuery = this.buildCanonicalQuery(query)
-    var signed = this.buildCanonicalHeaders(headers)
-    var payloadHash = $security.sha256(bodyString || "")
-    var canonicalRequest = [
-      "POST",
-      "/",
-      canonicalQuery,
-      signed.canonicalHeaders,
-      signed.signedHeaders,
-      payloadHash,
-    ].join("\n")
-
-    var credentialScope = [
-      requestTime.shortDate,
-      config.region,
-      config.service,
-      "request",
-    ].join("/")
-
-    var stringToSign = [
-      "HMAC-SHA256",
-      requestTime.amzDate,
-      credentialScope,
-      $security.sha256(canonicalRequest),
-    ].join("\n")
-
-    var dateKey = $security.hs256(requestTime.shortDate, config.secretKey)
-    var regionKey = $security.hs256(config.region, dateKey)
-    var serviceKey = $security.hs256(config.service, regionKey)
-    var signingKey = $security.hs256("request", serviceKey)
-    var signature = $security.hs256(stringToSign, signingKey)
-
-    return {
-      queryString: canonicalQuery,
-      headers: {
-        "Content-Type": "application/json",
-        Host: config.host,
-        "X-Date": requestTime.amzDate,
-        Authorization: "HMAC-SHA256 Credential="
-          + config.accessKey
-          + "/"
-          + credentialScope
-          + ", SignedHeaders="
-          + signed.signedHeaders
-          + ", Signature="
-          + signature,
-      },
-    }
-  },
-
-  sendSignedRequest: function (action, body) {
+  getHelperBaseUrl: function () {
     var config = this.getConfig()
-    var bodyString = JSON.stringify(body || {})
-    var signed = this.buildSignatureHeaders({
-      action: action,
-      version: config.version,
-      region: config.region,
-      service: config.service,
-      host: config.host,
-      accessKey: config.accessKey,
-      secretKey: config.secretKey,
-    }, bodyString)
+    return "http://" + config.helperHost + ":" + config.helperPort
+  },
 
+  callHelper: function (action, body) {
     var response = $http.send({
-      url: "https://" + config.host + "/?" + signed.queryString,
+      url: this.getHelperBaseUrl() + "/openapi",
       method: "POST",
-      headers: signed.headers,
-      body: bodyString,
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        action: action,
+        body: body || {},
+      }),
       timeout: 120,
     })
 
-    var payload = response.json || {}
+    var envelope = response.json || {}
+    var payload = envelope.payload || {}
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new BadRequestError(this.extractErrorMessage(payload) || "Jimeng request failed")
+      throw new BadRequestError(
+        this.formatErrorMessage(
+          payload,
+          this.extractErrorMessage(payload)
+            || envelope.error
+            || payload.message
+            || "Jimeng helper request failed",
+          envelope.status || response.statusCode
+        )
+      )
     }
 
     if (payload.ResponseMetadata && payload.ResponseMetadata.Error) {
-      throw new BadRequestError(payload.ResponseMetadata.Error.Message || "Jimeng request failed")
+      throw new BadRequestError(this.formatErrorMessage(payload, payload.ResponseMetadata.Error.Message || "Jimeng request failed"))
+    }
+
+    if (typeof payload.code !== "undefined" && !this.isDirectSuccessCode(payload.code)) {
+      throw new BadRequestError(this.formatErrorMessage(payload, this.extractErrorMessage(payload) || "Jimeng request failed"))
     }
 
     return payload
@@ -181,23 +82,96 @@ module.exports = {
       return ""
     }
 
+    var data = payload.data || {}
+
     if (payload.error && typeof payload.error.message === "string") {
       return payload.error.message
     }
 
-    if (payload.message && typeof payload.message === "string") {
+    if (typeof payload.error === "string") {
+      return payload.error
+    }
+
+    if (payload.message && typeof payload.message === "string" && !this.isSuccessMessage(payload.message)) {
       return payload.message
+    }
+
+    if (data.message && typeof data.message === "string" && !this.isSuccessMessage(data.message)) {
+      return data.message
     }
 
     if (payload.ResponseMetadata && payload.ResponseMetadata.Error && payload.ResponseMetadata.Error.Message) {
       return payload.ResponseMetadata.Error.Message
     }
 
-    if (payload.Result && payload.Result.RespJson && payload.Result.RespJson.message) {
+    if (
+      payload.Result
+      && payload.Result.RespJson
+      && payload.Result.RespJson.message
+      && !this.isSuccessMessage(payload.Result.RespJson.message)
+    ) {
       return payload.Result.RespJson.message
     }
 
     return ""
+  },
+
+  extractErrorCode: function (payload) {
+    if (!payload || typeof payload !== "object") {
+      return ""
+    }
+
+    var data = payload.data || {}
+    var result = payload.Result || {}
+    var respJson = result.RespJson || {}
+    var respData = respJson.data || {}
+
+    return String(
+      payload.code
+        || data.code
+        || result.Code
+        || result.code
+        || respJson.code
+        || respData.code
+        || ""
+    )
+  },
+
+  formatErrorMessage: function (payload, fallbackMessage, httpStatus) {
+    var code = this.extractErrorCode(payload)
+    var message = String(fallbackMessage || "Jimeng request failed")
+    var status = String(httpStatus || payload && payload.status || "").trim()
+
+    if (code && status) {
+      return "JIMENG_ERROR_CODE=" + code + " HTTP_STATUS=" + status + " " + message
+    }
+
+    if (code) {
+      return "JIMENG_ERROR_CODE=" + code + " " + message
+    }
+
+    return message
+  },
+
+  isDirectSuccessCode: function (value) {
+    return value === 0 || value === 10000 || value === "0" || value === "10000"
+  },
+
+  isSuccessMessage: function (value) {
+    var normalized = String(value || "").trim().toLowerCase()
+    return normalized === "success" || normalized === "success."
+  },
+
+  getDirectData: function (payload) {
+    if (!payload || typeof payload !== "object") {
+      return {}
+    }
+
+    if (payload.data && typeof payload.data === "object") {
+      return payload.data
+    }
+
+    return {}
   },
 
   buildPrompt: function (activityRecord, stylePreset, renderOptions) {
@@ -267,12 +241,15 @@ module.exports = {
       return ""
     }
 
+    var directData = this.getDirectData(payload)
     var result = payload.Result || {}
     var respJson = result.RespJson || {}
     var data = respJson.data || {}
 
     return String(
-      result.TaskId
+      directData.task_id
+        || directData.id
+        || result.TaskId
         || result.task_id
         || respJson.task_id
         || data.task_id
@@ -286,17 +263,32 @@ module.exports = {
       return ""
     }
 
+    var directData = this.getDirectData(payload)
     var result = payload.Result || {}
     var respJson = result.RespJson || {}
     var data = respJson.data || {}
 
-    return String(
-      result.Status
+    var rawStatus = String(
+      directData.status
+        || directData.task_status
+        || result.Status
         || result.status
         || data.status
         || respJson.status
         || ""
     ).toLowerCase()
+
+    if (rawStatus === "1") {
+      return "processing"
+    }
+    if (rawStatus === "2") {
+      return "success"
+    }
+    if (rawStatus === "3") {
+      return "failed"
+    }
+
+    return rawStatus
   },
 
   extractImageAsset: function (payload) {
@@ -304,10 +296,19 @@ module.exports = {
       return null
     }
 
+    var directData = this.getDirectData(payload)
     var result = payload.Result || {}
     var respJson = result.RespJson || {}
     var data = respJson.data || {}
     var imageUrls = []
+    var base64Images = []
+
+    if (Array.isArray(directData.image_urls)) {
+      imageUrls = imageUrls.concat(directData.image_urls)
+    }
+    if (typeof directData.image_url === "string") {
+      imageUrls.push(directData.image_url)
+    }
 
     if (Array.isArray(result.ImageUrls)) {
       imageUrls = imageUrls.concat(result.ImageUrls)
@@ -330,10 +331,27 @@ module.exports = {
       }
     }
 
-    if (typeof data.binary_data_base64 === "string" && data.binary_data_base64.length > 0) {
+    if (Array.isArray(directData.binary_data_base64)) {
+      base64Images = base64Images.concat(directData.binary_data_base64)
+    }
+    if (typeof directData.binary_data_base64 === "string") {
+      base64Images.push(directData.binary_data_base64)
+    }
+    if (Array.isArray(data.binary_data_base64)) {
+      base64Images = base64Images.concat(data.binary_data_base64)
+    }
+    if (typeof data.binary_data_base64 === "string") {
+      base64Images.push(data.binary_data_base64)
+    }
+
+    var firstBase64 = base64Images.find(function (value) {
+      return typeof value === "string" && value.length > 0
+    })
+
+    if (firstBase64) {
       return {
         kind: "base64",
-        value: data.binary_data_base64,
+        value: firstBase64,
       }
     }
 
@@ -344,18 +362,23 @@ module.exports = {
     var config = this.getConfig()
 
     for (var attempt = 0; attempt < config.pollMaxAttempts; attempt += 1) {
-      var payload = this.sendSignedRequest(config.queryAction, {
+      var payload = this.callHelper(config.queryAction, {
         req_key: config.reqKey,
         task_id: taskId,
       })
       var status = this.extractTaskStatus(payload)
+      var directCode = payload && typeof payload === "object" ? payload.code : null
 
       if (status === "done" || status === "succeeded" || status === "success") {
         return payload
       }
 
+      if (!status && this.isDirectSuccessCode(directCode) && this.extractImageAsset(payload)) {
+        return payload
+      }
+
       if (status === "not_found" || status === "failed" || status === "error") {
-        throw new BadRequestError(this.extractErrorMessage(payload) || "Jimeng task failed")
+        throw new BadRequestError(this.formatErrorMessage(payload, this.extractErrorMessage(payload) || "Jimeng task failed"))
       }
 
       sleep(config.pollIntervalMs)
@@ -366,11 +389,11 @@ module.exports = {
 
   render: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
-    var submitPayload = this.sendSignedRequest(config.submitAction, this.buildSubmitBody(activityRecord, stylePreset, renderOptions, routeBaseImageUrl))
+    var submitPayload = this.callHelper(config.submitAction, this.buildSubmitBody(activityRecord, stylePreset, renderOptions, routeBaseImageUrl))
     var taskId = this.extractTaskId(submitPayload)
 
     if (!taskId) {
-      throw new BadRequestError(this.extractErrorMessage(submitPayload) || "Jimeng submit response missing task id")
+      throw new BadRequestError(this.formatErrorMessage(submitPayload, this.extractErrorMessage(submitPayload) || "Jimeng submit response missing task id"))
     }
 
     var resultPayload = this.pollTaskResult(taskId)

@@ -7,6 +7,8 @@
     "dev": "pnpm run dev:all",
     "dev:web": "pnpm --dir frontend dev",
     "dev:pb": "node pocketbase/scripts/dev.mjs",
+    "dev:jimeng-helper": "node scripts/jimeng-helper.mjs",
+    "dev:art-worker": "node scripts/art-worker.mjs",
     "dev:all": "node scripts/dev-all.mjs",
     "build": "pnpm --dir frontend build",
     "preview": "pnpm --dir frontend preview",

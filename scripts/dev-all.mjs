@@ -7,7 +7,13 @@ const pbBaseUrl = process.env.PB_SEED_URL || process.env.PB_TYPEGEN_URL || 'http
 const healthUrl = new URL('/api/health', pbBaseUrl).toString()
 const startupTimeoutMs = Number.parseInt(process.env.PB_DEV_STARTUP_TIMEOUT_MS || '60000', 10)
 
-const processes = [
+const immediateProcesses = [
+  {
+    name: 'jimeng-helper',
+    command: process.execPath,
+    args: [path.resolve(repoRoot, 'scripts/jimeng-helper.mjs')],
+    color: '\x1b[34m',
+  },
   {
     name: 'pocketbase',
     command: process.execPath,
@@ -19,6 +25,15 @@ const processes = [
     command: 'pnpm',
     args: ['--dir', 'frontend', 'dev'],
     color: '\x1b[35m',
+  },
+]
+
+const deferredProcesses = [
+  {
+    name: 'art-worker',
+    command: process.execPath,
+    args: [path.resolve(repoRoot, 'scripts/art-worker.mjs')],
+    color: '\x1b[32m',
   },
 ]
 
@@ -82,7 +97,9 @@ const runSeed = () => new Promise((resolve, reject) => {
   })
 })
 
-const children = processes.map(({ name, command, args, color }) => {
+const children = []
+
+const startChild = ({ name, command, args, color }) => {
   const child = spawn(command, args, {
     cwd: repoRoot,
     stdio: ['inherit', 'pipe', 'pipe'],
@@ -132,8 +149,13 @@ const children = processes.map(({ name, command, args, color }) => {
     process.exit(1)
   })
 
+  children.push(child)
   return child
-})
+}
+
+for (const definition of immediateProcesses) {
+  startChild(definition)
+}
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
@@ -150,6 +172,10 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 try {
   await waitForPocketBase()
   await runSeed()
+  for (const definition of deferredProcesses) {
+    if (shuttingDown) break
+    startChild(definition)
+  }
 } catch (error) {
   if (!shuttingDown) {
     shuttingDown = true

@@ -1,4 +1,14 @@
 module.exports = {
+  getUploadProvider: function () {
+    return String($os.getenv("ART_ASSET_UPLOAD_PROVIDER") || "pocketbase").trim().toLowerCase()
+  },
+
+  getHelperBaseUrl: function () {
+    var host = String($os.getenv("JIMENG_HELPER_HOST") || "127.0.0.1").trim()
+    var port = String($os.getenv("JIMENG_HELPER_PORT") || "3210").trim()
+    return "http://" + host + ":" + port
+  },
+
   getAssetBaseUrl: function () {
     var base = $os.getenv("ART_ASSET_BASE_URL") || $os.getenv("APP_URL") || ""
     base = String(base || "").trim().replace(/\/$/, "")
@@ -85,6 +95,43 @@ module.exports = {
     return safeName + ext
   },
 
+  uploadToS3: function (base64Data, mimeType, fileName, userId, jobId, objectPrefix) {
+    var objectKey = [
+      objectPrefix || "route-bases",
+      encodeURIComponent(userId),
+      encodeURIComponent(jobId),
+      encodeURIComponent(fileName),
+    ].join("/")
+
+    var response = $http.send({
+      url: this.getHelperBaseUrl() + "/s3-upload",
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        objectKey: objectKey,
+        mimeType: mimeType,
+        base64Data: base64Data,
+      }),
+      timeout: 120,
+    })
+
+    var payload = response.json || {}
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new BadRequestError(payload.error || "Failed to upload route base to S3")
+    }
+
+    if (!payload.url) {
+      throw new BadRequestError("S3 upload response missing file url")
+    }
+
+    return {
+      url: payload.url,
+      objectKey: payload.objectKey || objectKey,
+    }
+  },
+
   uploadRouteBase: function (e) {
     var body = e.requestInfo().body || {}
     var jobId = e.request.pathValue("id")
@@ -110,14 +157,23 @@ module.exports = {
     }
 
     var parsed = this.parseDataUrl(dataUrl)
-    var bytes = this.decodeBase64ToBytes(parsed.base64Data)
-    var file = $filesystem.fileFromBytes(bytes, this.resolveFilename(fileName, parsed.mimeType))
+    var resolvedFileName = this.resolveFilename(fileName, parsed.mimeType)
+    var fileUrl = ""
 
-    job.set("route_base_image", file)
-    e.app.save(job)
+    if (this.getUploadProvider() === "s3") {
+      var uploaded = this.uploadToS3(parsed.base64Data, parsed.mimeType, resolvedFileName, userId, jobId)
+      fileUrl = uploaded.url
+    } else {
+      var bytes = this.decodeBase64ToBytes(parsed.base64Data)
+      var file = $filesystem.fileFromBytes(bytes, resolvedFileName)
 
-    var storedName = job.getString("route_base_image")
-    var fileUrl = this.buildFileUrl(job, storedName)
+      job.set("route_base_image", file)
+      e.app.save(job)
+
+      var storedName = job.getString("route_base_image")
+      fileUrl = this.buildFileUrl(job, storedName)
+    }
+
     job.set("route_base_image_url", fileUrl)
     e.app.save(job)
 

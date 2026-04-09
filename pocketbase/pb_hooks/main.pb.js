@@ -108,12 +108,17 @@ routerAdd("POST", "/api/art/jobs/{id}/route-base", function (e) {
 
 routerAdd("POST", "/api/art/jobs/{id}/render", function (e) {
   var renderArt = require(__hooks + "/render-art.js")
-  return e.json(200, renderArt.renderJob(e))
+  return e.json(200, renderArt.enqueueJob(e))
 }, $apis.requireAuth("users"))
 
 routerAdd("POST", "/api/art/jobs/{id}/mock-render", function (e) {
   var renderArt = require(__hooks + "/render-art.js")
-  return e.json(200, renderArt.renderJob(e, {
+  return e.json(200, renderArt.renderNowForUser(e, {
     forceProvider: "mock",
   }))
 }, $apis.requireAuth("users"))
+
+routerAdd("POST", "/api/internal/art/jobs/{id}/process", function (e) {
+  var renderArt = require(__hooks + "/render-art.js")
+  return e.json(200, renderArt.processQueuedJob(e))
+})

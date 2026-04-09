@@ -35,7 +35,7 @@ export const useArtJobsStore = defineStore('artJobs', () => {
     try {
       const result = await artJobsCollection().getList(1, 20, {
         filter: `activity = "${activityId}"`,
-        sort: '-created',
+        sort: '-queued_at',
       })
       jobs.value = result.items.filter(isArtJob)
     } catch (value) {

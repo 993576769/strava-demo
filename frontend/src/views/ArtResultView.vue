@@ -29,16 +29,6 @@ const downloadLabel = computed(() => {
   return '下载 Mock SVG'
 })
 
-const formatDateTime = (value: string) => {
-  return new Date(value).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 const downloadImage = () => {
   if (typeof window === 'undefined' || !result.value?.image_data_uri) return
 
@@ -118,10 +108,6 @@ onUnmounted(() => {
                 <p class="mt-2 text-sm font-medium text-[var(--color-text)]">{{ result.width }} × {{ result.height }}</p>
               </div>
 
-              <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
-                <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">创建时间</p>
-                <p class="mt-2 text-sm font-medium text-[var(--color-text)]">{{ formatDateTime(result.created) }}</p>
-              </div>
             </div>
           </section>
 

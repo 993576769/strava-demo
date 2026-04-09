@@ -7,6 +7,7 @@ type RenderMockJobResponse = {
   job?: unknown
   result?: unknown
   reused?: boolean
+  queued?: boolean
   provider?: string
 }
 
@@ -15,7 +16,7 @@ export const useArtResultsStore = defineStore('artResults', () => {
   const currentResult = ref<ArtResult | null>(null)
   const loading = ref(false)
   const detailLoading = ref(false)
-  const rendering = ref(false)
+  const queueing = ref(false)
   const error = ref<string | null>(null)
 
   const latestResult = computed(() => results.value[0] ?? null)
@@ -27,7 +28,6 @@ export const useArtResultsStore = defineStore('artResults', () => {
     try {
       const response = await artResultsCollection().getList(1, 20, {
         filter: `activity = "${activityId}"`,
-        sort: '-created',
       })
       results.value = response.items.filter(isArtResult)
     } catch (value) {
@@ -57,8 +57,8 @@ export const useArtResultsStore = defineStore('artResults', () => {
 
   const lastProvider = ref<string | null>(null)
 
-  const renderJob = async (jobId: string) => {
-    rendering.value = true
+  const queueJob = async (jobId: string) => {
+    queueing.value = true
     error.value = null
     lastProvider.value = null
 
@@ -67,20 +67,23 @@ export const useArtResultsStore = defineStore('artResults', () => {
         method: 'POST',
       })
       const result = isArtResult(response.result) ? response.result : null
-      if (!result) {
-        throw new Error('Invalid art result response')
+      if (result) {
+        results.value = [result, ...results.value.filter((item) => item.id !== result.id)]
+        currentResult.value = result
       }
 
-      results.value = [result, ...results.value.filter((item) => item.id !== result.id)]
-      currentResult.value = result
       lastProvider.value = response.provider ?? null
-      return result
+      return {
+        result,
+        queued: response.queued !== false,
+        reused: !!response.reused,
+      }
     } catch (value) {
       console.error(value)
-      error.value = value instanceof Error ? value.message : '生成图片失败'
+      error.value = value instanceof Error ? value.message : '加入生成队列失败'
       return null
     } finally {
-      rendering.value = false
+      queueing.value = false
     }
   }
 
@@ -96,13 +99,13 @@ export const useArtResultsStore = defineStore('artResults', () => {
     currentResult,
     loading,
     detailLoading,
-    rendering,
+    queueing,
     error,
     lastProvider,
     latestResult,
     fetchResultsForActivity,
     fetchResultById,
-    renderJob,
+    queueJob,
     clear,
   }
 })
