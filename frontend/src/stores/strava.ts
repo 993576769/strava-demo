@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { pb, stravaConnectionsCollection } from '@/lib/pocketbase'
+import { pb } from '@/lib/pocketbase'
 import { useAuthStore } from '@/stores/auth'
 import { isStravaConnection, type StravaConnection, type StravaConnectionStatus } from '@/types/pocketbase'
 
@@ -35,6 +35,7 @@ export const useStravaStore = defineStore('strava', () => {
   const loading = ref(false)
   const connecting = ref(false)
   const syncing = ref(false)
+  const disconnecting = ref(false)
   const error = ref<string | null>(null)
   const syncSummary = ref<{
     fetched: number
@@ -61,6 +62,7 @@ export const useStravaStore = defineStore('strava', () => {
   const canSync = computed(() => {
     return !!connection.value && connection.value.status === 'active' && !syncing.value && !connecting.value
   })
+  const canDisconnect = computed(() => !!connection.value && !disconnecting.value && !connecting.value && !syncing.value)
 
   const startConnection = async () => {
     if (typeof window === 'undefined') return
@@ -95,12 +97,12 @@ export const useStravaStore = defineStore('strava', () => {
     error.value = null
 
     try {
-      const result = await stravaConnectionsCollection().getList(1, 1, {
-        filter: 'provider = "strava"',
-        sort: '-created',
+      const result = await pb.send<{
+        connection?: unknown
+      }>('/api/integrations/strava/status', {
+        method: 'GET',
       })
-      const [firstConnection] = result.items
-      connection.value = firstConnection && isStravaConnection(firstConnection) ? firstConnection : null
+      connection.value = result.connection && isStravaConnection(result.connection) ? result.connection : null
     } catch (value) {
       console.error(value)
       connection.value = null
@@ -150,11 +152,34 @@ export const useStravaStore = defineStore('strava', () => {
     }
   }
 
+  const disconnect = async () => {
+    if (!auth.isLoggedIn) return false
+
+    disconnecting.value = true
+    error.value = null
+    syncSummary.value = null
+
+    try {
+      await pb.send('/api/integrations/strava/disconnect', {
+        method: 'POST',
+      })
+      connection.value = null
+      return true
+    } catch (value) {
+      console.error(value)
+      error.value = value instanceof Error ? value.message : '断开 Strava 连接失败'
+      return false
+    } finally {
+      disconnecting.value = false
+    }
+  }
+
   return {
     connection,
     loading,
     connecting,
     syncing,
+    disconnecting,
     error,
     syncSummary,
     status,
@@ -162,8 +187,10 @@ export const useStravaStore = defineStore('strava', () => {
     lastSyncAt,
     canConnect,
     canSync,
+    canDisconnect,
     startConnection,
     fetchConnection,
     runSync,
+    disconnect,
   }
 })

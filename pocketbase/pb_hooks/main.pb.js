@@ -40,6 +40,11 @@ routerAdd("GET", "/api/integrations/strava/callback", function (e) {
   }
 })
 
+routerAdd("GET", "/api/integrations/strava/status", function (e) {
+  var utils = require(__hooks + "/strava.js")
+  return e.json(200, utils.getStatusPayload(e.auth.id))
+}, $apis.requireAuth("users"))
+
 routerAdd("POST", "/api/integrations/strava/sync", function (e) {
   var utils = require(__hooks + "/strava.js")
   var result = utils.syncActivities(e.auth.id)
@@ -47,6 +52,11 @@ routerAdd("POST", "/api/integrations/strava/sync", function (e) {
     connection: result.connection.publicExport(),
     stats: result.stats,
   })
+}, $apis.requireAuth("users"))
+
+routerAdd("POST", "/api/integrations/strava/disconnect", function (e) {
+  var utils = require(__hooks + "/strava.js")
+  return e.json(200, utils.disconnect(e.auth.id))
 }, $apis.requireAuth("users"))
 
 routerAdd("POST", "/api/art/jobs", function (e) {

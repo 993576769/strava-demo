@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert } from 'lucide-vue-next'
+import { ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { useActivitiesStore } from '@/stores/activities'
 import { useStravaStore } from '@/stores/strava'
 
@@ -75,6 +75,13 @@ const syncActivities = async () => {
   await activitiesStore.fetchActivities()
 }
 
+const disconnectStrava = async () => {
+  const disconnected = await stravaStore.disconnect()
+  if (disconnected) {
+    await activitiesStore.fetchActivities()
+  }
+}
+
 onMounted(async () => {
   await refreshPage()
   if (stravaQueryStatus.value === 'connected') {
@@ -104,6 +111,10 @@ onMounted(async () => {
             <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
               <Download class="w-4 h-4 mr-2" />
               {{ stravaStore.syncing ? '正在同步活动...' : '同步活动' }}
+            </button>
+            <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnectStrava">
+              <Unplug class="w-4 h-4 mr-2" />
+              {{ stravaStore.disconnecting ? '正在断开连接...' : '断开 Strava' }}
             </button>
             <button class="btn btn-ghost" @click="refreshPage">
               <RefreshCw class="w-4 h-4 mr-2" />
@@ -180,6 +191,10 @@ onMounted(async () => {
             <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
               <Download class="w-4 h-4 mr-2" />
               {{ stravaStore.syncing ? '正在同步活动...' : '同步首批活动' }}
+            </button>
+            <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnectStrava">
+              <Unplug class="w-4 h-4 mr-2" />
+              {{ stravaStore.disconnecting ? '正在断开连接...' : '断开连接' }}
             </button>
             <button class="btn btn-ghost" @click="refreshPage">
               <RefreshCw class="w-4 h-4 mr-2" />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Compass, Link2, LogOut, Route, ShieldCheck, Sparkles } from 'lucide-vue-next'
+import { Compass, Download, Link2, LogOut, Route, ShieldCheck, Sparkles, Unplug } from 'lucide-vue-next'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStravaStore } from '@/stores/strava'
@@ -29,6 +29,14 @@ onMounted(async () => {
 
 const openActivities = () => {
   router.push({ name: 'activities' })
+}
+
+const syncActivities = async () => {
+  await strava.runSync()
+}
+
+const disconnectStrava = async () => {
+  await strava.disconnect()
 }
 </script>
 
@@ -61,10 +69,10 @@ const openActivities = () => {
         <div class="rounded-[28px] border border-[var(--color-border)]/50 bg-[var(--color-surface-card)] p-6 sm:p-8 shadow-[0_20px_50px_rgba(15,23,42,0.10)]">
           <p class="text-xs uppercase tracking-[0.28em] text-[var(--color-text-muted)]">Stage 1</p>
           <h2 class="text-2xl sm:text-4xl font-semibold text-[var(--color-text)] mt-3 leading-tight">
-            GitHub 登录已经就位，下一步接入 Strava 活动同步。
+            GitHub 登录、Strava 同步和 mock 成品链路已经接通。
           </h2>
           <p class="mt-4 text-[var(--color-text-muted)] leading-7">
-            现在首页已经从模板示例页切成产品控制台壳层。接下来会增加 Strava 连接状态、活动列表、活动详情和第一版手绘生成任务。
+            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成 mock 成品。
           </p>
 
           <div class="mt-6 flex flex-wrap gap-3">
@@ -75,6 +83,14 @@ const openActivities = () => {
                   ? '正在跳转到 Strava...'
                   : (strava.canConnect ? '连接 Strava' : 'Strava 状态已读取')
               }}
+            </button>
+            <button class="btn btn-primary" @click="syncActivities" :disabled="!strava.canSync">
+              <Download class="w-4 h-4 mr-2" />
+              {{ strava.syncing ? '正在同步活动...' : '同步活动' }}
+            </button>
+            <button class="btn btn-ghost" @click="disconnectStrava" :disabled="!strava.canDisconnect">
+              <Unplug class="w-4 h-4 mr-2" />
+              {{ strava.disconnecting ? '正在断开连接...' : '断开 Strava' }}
             </button>
             <button class="btn btn-ghost" @click="openActivities">
               <Sparkles class="w-4 h-4 mr-2" />
@@ -121,7 +137,7 @@ const openActivities = () => {
               </li>
               <li class="flex gap-3">
                 <span class="mt-1 w-2 h-2 rounded-full bg-primary shrink-0"></span>
-                当前已补上 Strava 连接状态、活动列表入口和 OAuth 发起链路，下一步会继续接首次同步。
+                当前已补上 Strava 连接管理、首次同步和本地活动读取。
               </li>
             </ul>
           </section>

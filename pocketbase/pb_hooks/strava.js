@@ -194,11 +194,24 @@ module.exports = {
   },
 
   getConnectionForUser: function (userId) {
-    return $app.findFirstRecordByFilter(
-      "strava_connections",
-      "user = {:userId} && provider = 'strava'",
-      { userId: userId }
-    )
+    try {
+      return $app.findFirstRecordByFilter(
+        "strava_connections",
+        "user = {:userId} && provider = 'strava'",
+        { userId: userId }
+      )
+    } catch (_) {
+      return null
+    }
+  },
+
+  getStatusPayload: function (userId) {
+    var connection = this.getConnectionForUser(userId)
+    return {
+      connected: !!connection && connection.getString("status") === "active",
+      needsReauth: !!connection && connection.getString("status") === "reauthorization_required",
+      connection: connection ? connection.publicExport() : null,
+    }
   },
 
   decryptValue: function (cipherText) {
@@ -530,6 +543,29 @@ module.exports = {
     return {
       connection: connection,
       stats: stats,
+    }
+  },
+
+  disconnect: function (userId) {
+    var connection = this.getConnectionForUser(userId)
+    if (!connection) {
+      return {
+        disconnected: true,
+        connection: null,
+      }
+    }
+
+    connection.set("status", "revoked")
+    connection.set("access_token_encrypted", "")
+    connection.set("refresh_token_encrypted", "")
+    connection.set("token_expires_at", null)
+    connection.set("last_error_code", "")
+    connection.set("last_error_message", "")
+    $app.save(connection)
+
+    return {
+      disconnected: true,
+      connection: connection.publicExport(),
     }
   },
 
