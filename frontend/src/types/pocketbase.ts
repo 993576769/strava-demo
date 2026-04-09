@@ -2,6 +2,7 @@ import type {
   ActivitiesResponse,
   ActivityStreamsResponse,
   ArtJobsResponse,
+  ArtResultsResponse,
   StravaConnectionsResponse,
   TodoCreate,
   TodoUpdate,
@@ -22,6 +23,7 @@ export type StravaConnectionStatus = 'active' | 'expired' | 'revoked' | 'reautho
 export type ActivityVisibility = 'public' | 'followers_only' | 'only_me' | 'unknown'
 export type ActivitySyncStatus = 'pending_detail' | 'ready' | 'partial' | 'failed'
 export type ArtJobStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | 'canceled'
+export type ArtResultVisibility = 'private' | 'unlisted' | 'public'
 export type TodoCreateInput = Omit<TodoCreate, 'priority'> & {
   priority?: Priority
 }
@@ -37,6 +39,7 @@ export type StravaConnection = StravaConnectionsResponse<{ user?: UsersResponse 
 export type Activity = ActivitiesResponse<{ user?: UsersResponse; connection?: StravaConnectionsResponse }>
 export type ActivityStream = ActivityStreamsResponse<{ activity?: ActivitiesResponse }>
 export type ArtJob = ArtJobsResponse<{ activity?: ActivitiesResponse; stream?: ActivityStreamsResponse; user?: UsersResponse }>
+export type ArtResult = ArtResultsResponse<{ activity?: ActivitiesResponse; job?: ArtJobsResponse; user?: UsersResponse }>
 export type Todo = TodosResponse<string[], { user?: UsersResponse }>
 
 export type { TypedPocketBase }
@@ -73,6 +76,11 @@ export const artJobStatusValues = [
   'failed',
   'canceled',
 ] as const satisfies readonly ArtJobStatus[]
+export const artResultVisibilityValues = [
+  'private',
+  'unlisted',
+  'public',
+] as const satisfies readonly ArtResultVisibility[]
 export const filterStatusValues = ['all', 'active', 'completed'] as const satisfies readonly FilterStatus[]
 
 export const isPriority = (value: unknown): value is Priority =>
@@ -92,6 +100,9 @@ export const isActivitySyncStatus = (value: unknown): value is ActivitySyncStatu
 
 export const isArtJobStatus = (value: unknown): value is ArtJobStatus =>
   typeof value === 'string' && artJobStatusValues.includes(value as ArtJobStatus)
+
+export const isArtResultVisibility = (value: unknown): value is ArtResultVisibility =>
+  typeof value === 'string' && artResultVisibilityValues.includes(value as ArtResultVisibility)
 
 export const isFilterStatus = (value: unknown): value is FilterStatus =>
   typeof value === 'string' && filterStatusValues.includes(value as FilterStatus)
@@ -154,6 +165,19 @@ export const isArtJob = (value: unknown): value is ArtJob => {
     'activity' in value &&
     'status' in value &&
     'style_preset' in value
+  )
+}
+
+export const isArtResult = (value: unknown): value is ArtResult => {
+  if (typeof value !== 'object' || value === null) return false
+
+  return (
+    'collectionName' in value &&
+    value.collectionName === 'art_results' &&
+    'id' in value &&
+    'job' in value &&
+    'activity' in value &&
+    'image_data_uri' in value
   )
 }
 

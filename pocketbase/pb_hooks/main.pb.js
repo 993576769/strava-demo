@@ -45,3 +45,119 @@ routerAdd("POST", "/api/art/jobs", function (e) {
   var result = art.createJob(e)
   return e.json(200, result)
 }, $apis.requireAuth("users"))
+
+routerAdd("POST", "/api/art/jobs/{id}/mock-render", function (e) {
+  var art = require(__hooks + "/art.js")
+  var mockArt = require(__hooks + "/mock-art.js")
+  var jobId = e.request.pathValue("id")
+  var userId = e.auth.id
+
+  var job = e.app.findFirstRecordByFilter(
+    "art_jobs",
+    "id = {:jobId} && user = {:userId}",
+    {
+      jobId: jobId,
+      userId: userId,
+    }
+  )
+
+  var existingResult = null
+  try {
+    existingResult = e.app.findFirstRecordByFilter(
+      "art_results",
+      "job = {:jobId} && user = {:userId}",
+      {
+        jobId: jobId,
+        userId: userId,
+      }
+    )
+  } catch (_) {}
+
+  if (existingResult) {
+    return e.json(200, {
+      job: job.publicExport(),
+      result: existingResult.publicExport(),
+      reused: true,
+    })
+  }
+
+  if (job.getString("status") === "canceled") {
+    throw new BadRequestError("Canceled jobs can't be rendered")
+  }
+
+  var activity = e.app.findFirstRecordByFilter(
+    "activities",
+    "id = {:activityId} && user = {:userId}",
+    {
+      activityId: job.getString("activity"),
+      userId: userId,
+    }
+  )
+
+  var stream = null
+  var streamId = job.getString("stream")
+  if (streamId) {
+    try {
+      stream = e.app.findFirstRecordByFilter(
+        "activity_streams",
+        "id = {:streamId} && user = {:userId}",
+        {
+          streamId: streamId,
+          userId: userId,
+        }
+      )
+    } catch (_) {}
+  }
+
+  var renderOptions = art.normalizeRenderOptions(job.getRaw("render_options_json"))
+  var stylePreset = art.normalizeStylePreset(job.getString("style_preset"))
+  var now = new Date().toISOString()
+
+  job.set("status", "processing")
+  if (!job.getString("started_at")) {
+    job.set("started_at", now)
+  }
+  job.set("worker_ref", "mock-svg-renderer:v1")
+  e.app.save(job)
+
+  try {
+    var assets = mockArt.buildMockAssets(activity, stream, stylePreset, renderOptions)
+    var collection = e.app.findCollectionByNameOrId("art_results")
+    var resultRecord = new Record(collection)
+
+    resultRecord.set("job", job.id)
+    resultRecord.set("user", userId)
+    resultRecord.set("activity", activity.id)
+    resultRecord.set("image_data_uri", assets.imageDataUri)
+    resultRecord.set("thumbnail_data_uri", assets.thumbnailDataUri)
+    resultRecord.set("width", assets.width)
+    resultRecord.set("height", assets.height)
+    resultRecord.set("file_size", assets.fileSize)
+    resultRecord.set("mime_type", "image/svg+xml")
+    resultRecord.set("style_preset", stylePreset)
+    resultRecord.set("title_snapshot", assets.title)
+    resultRecord.set("subtitle_snapshot", assets.subtitle)
+    resultRecord.set("metadata_json", assets.metadata)
+    resultRecord.set("visibility", "private")
+    e.app.save(resultRecord)
+
+    job.set("status", "succeeded")
+    job.set("finished_at", new Date().toISOString())
+    job.set("error_code", "")
+    job.set("error_message", "")
+    e.app.save(job)
+
+    return e.json(200, {
+      job: job.publicExport(),
+      result: resultRecord.publicExport(),
+      reused: false,
+    })
+  } catch (err) {
+    job.set("status", "failed")
+    job.set("error_code", "mock_render_failed")
+    job.set("error_message", err && err.message ? err.message : "Mock render failed")
+    job.set("finished_at", new Date().toISOString())
+    e.app.save(job)
+    throw err
+  }
+}, $apis.requireAuth("users"))

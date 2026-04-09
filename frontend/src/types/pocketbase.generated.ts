@@ -11,6 +11,7 @@ export enum Collections {
   Activities = 'activities',
   ActivityStreams = 'activity_streams',
   ArtJobs = 'art_jobs',
+  ArtResults = 'art_results',
   StravaConnections = 'strava_connections',
   Todos = 'todos',
   Users = 'users',
@@ -177,6 +178,32 @@ export type ArtJobsRecord = {
   worker_ref?: string
 }
 
+export enum ArtResultsVisibilityOptions {
+  Private = 'private',
+  Unlisted = 'unlisted',
+  Public = 'public',
+}
+
+export type ArtResultsRecord = {
+  activity: RecordIdString
+  created?: IsoDateString
+  file_size?: number
+  height?: number
+  id: string
+  image_data_uri: string
+  job: RecordIdString
+  metadata_json?: unknown
+  mime_type?: string
+  style_preset: string
+  subtitle_snapshot?: string
+  thumbnail_data_uri?: string
+  title_snapshot?: string
+  updated?: IsoDateString
+  user: RecordIdString
+  visibility: ArtResultsVisibilityOptions
+  width?: number
+}
+
 export enum TodosPriorityOptions {
   Low = 'low',
   Medium = 'medium',
@@ -202,12 +229,14 @@ export type StravaConnectionsResponse<Texpand = unknown> = Required<StravaConnec
 export type ActivitiesResponse<Texpand = unknown> = Required<ActivitiesRecord> & BaseSystemFields<Texpand>
 export type ActivityStreamsResponse<Texpand = unknown> = Required<ActivityStreamsRecord> & BaseSystemFields<Texpand>
 export type ArtJobsResponse<Texpand = unknown> = Required<ArtJobsRecord> & BaseSystemFields<Texpand>
+export type ArtResultsResponse<Texpand = unknown> = Required<ArtResultsRecord> & BaseSystemFields<Texpand>
 export type TodosResponse<Ttags = unknown, Texpand = unknown> = Required<TodosRecord<Ttags>> & BaseSystemFields<Texpand>
 
 export type CollectionRecords = {
   activities: ActivitiesRecord
   activity_streams: ActivityStreamsRecord
   art_jobs: ArtJobsRecord
+  art_results: ArtResultsRecord
   strava_connections: StravaConnectionsRecord
   todos: TodosRecord
   users: UsersRecord
@@ -217,6 +246,7 @@ export type CollectionResponses = {
   activities: ActivitiesResponse
   activity_streams: ActivityStreamsResponse
   art_jobs: ArtJobsResponse
+  art_results: ArtResultsResponse
   strava_connections: StravaConnectionsResponse
   todos: TodosResponse
   users: UsersResponse
@@ -246,6 +276,7 @@ export type TypedPocketBase = PocketBase & {
   collection(idOrName: 'activities'): RecordService<ActivitiesResponse>
   collection(idOrName: 'activity_streams'): RecordService<ActivityStreamsResponse>
   collection(idOrName: 'art_jobs'): RecordService<ArtJobsResponse>
+  collection(idOrName: 'art_results'): RecordService<ArtResultsResponse>
   collection(idOrName: 'strava_connections'): RecordService<StravaConnectionsResponse>
   collection(idOrName: 'todos'): RecordService<TodosResponse>
   collection(idOrName: 'users'): RecordService<UsersResponse>
