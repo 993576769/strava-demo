@@ -10,6 +10,24 @@ const artResultsStore = useArtResultsStore()
 
 const resultId = computed(() => String(route.params.id ?? ''))
 const result = computed(() => artResultsStore.currentResult)
+const providerLabel = computed(() => {
+  const metadata = result.value?.metadata_json
+  if (!metadata || typeof metadata !== 'object') return '生成结果'
+
+  const provider = 'provider' in metadata ? metadata.provider : undefined
+  if (provider === 'jimeng46') return '即梦 4.6'
+
+  const renderer = 'renderer' in metadata ? metadata.renderer : undefined
+  if (renderer === 'mock-svg-v1') return 'Mock SVG'
+
+  return '生成结果'
+})
+const downloadLabel = computed(() => {
+  if (providerLabel.value === '即梦 4.6')
+    return '下载结果图'
+
+  return '下载 Mock SVG'
+})
 
 const formatDateTime = (value: string) => {
   return new Date(value).toLocaleString('zh-CN', {
@@ -21,12 +39,13 @@ const formatDateTime = (value: string) => {
   })
 }
 
-const downloadMockImage = () => {
+const downloadImage = () => {
   if (typeof window === 'undefined' || !result.value?.image_data_uri) return
 
   const link = document.createElement('a')
   link.href = result.value.image_data_uri
-  link.download = `${result.value.style_preset}-${result.value.id}.svg`
+  const extension = result.value.mime_type === 'image/svg+xml' ? 'svg' : 'png'
+  link.download = `${result.value.style_preset}-${result.value.id}.${extension}`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -52,9 +71,9 @@ onUnmounted(() => {
           返回上一页
         </button>
 
-        <button v-if="result?.image_data_uri" class="btn btn-primary" @click="downloadMockImage">
+        <button v-if="result?.image_data_uri" class="btn btn-primary" @click="downloadImage">
           <Download class="w-4 h-4 mr-2" />
-          下载 Mock SVG
+          {{ downloadLabel }}
         </button>
       </div>
 
@@ -71,7 +90,7 @@ onUnmounted(() => {
         <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-4 sm:p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <img
             :src="result.image_data_uri"
-            :alt="result.title_snapshot || 'Mock art result'"
+            :alt="result.title_snapshot || 'Art result'"
             class="w-full rounded-[24px] border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)] object-cover"
           />
         </article>
@@ -81,7 +100,7 @@ onUnmounted(() => {
             <div class="flex items-start gap-3">
               <ImageIcon class="w-5 h-5 mt-1 text-primary shrink-0" />
               <div>
-                <h1 class="text-xl font-semibold text-[var(--color-text)]">{{ result.title_snapshot || 'Mock Result' }}</h1>
+                <h1 class="text-xl font-semibold text-[var(--color-text)]">{{ result.title_snapshot || 'Art Result' }}</h1>
                 <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                   {{ result.subtitle_snapshot || '暂无副标题' }}
                 </p>
@@ -90,8 +109,8 @@ onUnmounted(() => {
 
             <div class="mt-6 grid gap-3">
               <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
-                <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Style</p>
-                <p class="mt-2 text-sm font-medium text-[var(--color-text)]">{{ result.style_preset }}</p>
+                <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Renderer</p>
+                <p class="mt-2 text-sm font-medium text-[var(--color-text)]">{{ providerLabel }}</p>
               </div>
 
               <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
@@ -112,7 +131,7 @@ onUnmounted(() => {
               <div>
                 <h2 class="text-base font-semibold text-[var(--color-text)]">当前阶段说明</h2>
                 <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                  这里展示的是 mock 渲染器生成的 SVG 成品，用来替代真实 AI 输出。下一阶段接入真实生成服务时，可以保留相同的任务和结果页面结构。
+                  当前结果页会复用同一套任务与详情结构。如果后端已配置即梦 4.6，这里展示的就是远端生成结果；否则会自动回退到 mock SVG。
                 </p>
               </div>
             </div>

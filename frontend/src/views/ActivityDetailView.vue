@@ -20,6 +20,21 @@ const selectedAspectRatio = ref<AspectRatio>('portrait')
 const includeTitle = ref(true)
 const createFeedback = ref('')
 
+const getResultRendererLabel = (result: unknown) => {
+  if (!result || typeof result !== 'object') return '成品'
+
+  const metadata = 'metadata_json' in result ? result.metadata_json : undefined
+  if (!metadata || typeof metadata !== 'object') return '成品'
+
+  const provider = 'provider' in metadata ? metadata.provider : undefined
+  if (provider === 'jimeng46') return '即梦 4.6 成品'
+
+  const renderer = 'renderer' in metadata ? metadata.renderer : undefined
+  if (renderer === 'mock-svg-v1') return 'Mock 成品'
+
+  return '成品'
+}
+
 const formatDateTime = (value: string) => {
   return new Date(value).toLocaleString('zh-CN', {
     year: 'numeric',
@@ -82,15 +97,17 @@ const createArtJob = async () => {
     return
   }
 
-  const result = await artResultsStore.renderMockJob(job.id)
+  const result = await artResultsStore.renderJob(job.id)
   await Promise.all([
     artJobsStore.fetchJobsForActivity(activity.value.id),
     artResultsStore.fetchResultsForActivity(activity.value.id),
   ])
 
   createFeedback.value = result
-    ? (artJobsStore.lastCreateResult === 'reused' ? '已复用并完成一个现有任务，mock 成品已生成。' : '任务已创建并完成 mock 渲染。')
-    : '任务已创建，但 mock 渲染失败。'
+    ? (artJobsStore.lastCreateResult === 'reused'
+        ? `已复用并完成一个现有任务，${getResultRendererLabel(result)}已生成。`
+        : `任务已创建并完成${getResultRendererLabel(result)}生成。`)
+    : '任务已创建，但图片生成失败。'
 }
 
 const openResult = (id: string) => {
@@ -178,7 +195,7 @@ onUnmounted(() => {
                 <p class="mt-2 text-sm text-[var(--color-text-muted)] leading-7">
                   {{
                     activity.is_generatable
-                      ? '当前活动已通过基础可生成校验。现在已经可以创建 `art_jobs` 任务，下一阶段再接真实 AI worker。'
+                      ? '当前活动已通过基础可生成校验。现在已经可以创建 `art_jobs` 任务，并走真实渲染入口。'
                       : (activity.generatable_reason || '当前活动暂时不可生成，后续会补充更明确的判定说明。')
                   }}
                 </p>
@@ -193,7 +210,7 @@ onUnmounted(() => {
             <div class="min-w-0 flex-1">
               <h2 class="text-base font-semibold text-[var(--color-text)]">生成设置</h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                这一阶段先把风格模板、画布比例和任务创建打通。真正的 AI worker 会在下一阶段接上。
+                现在会优先走真实渲染入口；如果本地还没有配置即梦 4.6 的必要参数，则会自动回退到 mock 渲染器。
               </p>
 
               <div class="mt-5 grid gap-3 md:grid-cols-3">
@@ -258,10 +275,10 @@ onUnmounted(() => {
                 >
                   <Loader2 v-if="artJobsStore.creating || artResultsStore.rendering" class="w-4 h-4 mr-2 animate-spin" />
                   <WandSparkles v-else class="w-4 h-4 mr-2" />
-                  {{ artJobsStore.creating || artResultsStore.rendering ? '正在生成 mock 图片...' : '生成 Mock 成品' }}
+                  {{ artJobsStore.creating || artResultsStore.rendering ? '正在生成图片...' : '生成成品' }}
                 </button>
                 <p class="text-sm text-[var(--color-text-muted)]">
-                  {{ activity.is_generatable ? '这一步会先创建任务，再用 mock SVG 渲染器产出成品。' : '当前活动不可生成，按钮已禁用。' }}
+                  {{ activity.is_generatable ? '这一步会先创建任务，再由当前渲染 provider 产出成品。' : '当前活动不可生成，按钮已禁用。' }}
                 </p>
               </div>
             </div>
@@ -334,7 +351,7 @@ onUnmounted(() => {
             <div class="min-w-0 flex-1">
               <h2 class="text-base font-semibold text-[var(--color-text)]">生成结果</h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                当前阶段先展示 mock SVG 成品，后续接入真实 AI 输出时，这一块会继续沿用。
+                这里会展示当前 provider 产出的结果图。未配置即梦 4.6 时，会自动显示 mock 回退结果。
               </p>
 
               <div v-if="artResultsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
@@ -342,7 +359,7 @@ onUnmounted(() => {
               </div>
 
               <div v-else-if="artResultsStore.results.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
-                还没有成品结果。创建一个任务后，这里会出现 mock 结果预览和详情入口。
+                还没有成品结果。创建一个任务后，这里会出现结果预览和详情入口。
               </div>
 
               <div v-else class="mt-5 grid gap-4 md:grid-cols-2">

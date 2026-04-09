@@ -7,10 +7,11 @@
 - 连接 Strava 并读取授权状态
 - 手动同步 Strava 活动到本地 `activities` / `activity_streams`
 - 从活动创建 `art_jobs`
-- 使用 mock SVG 渲染器生成 `art_results`
-- 查看结果详情并下载 mock 成品
+- 通过统一渲染入口生成 `art_results`
+- 已支持接入即梦 4.6，未配置时自动回退到 mock SVG 渲染器
+- 查看结果详情并下载成品
 
-当前仍是 MVP 迭代中，图片生成先用 mock 渲染器替代真实 AI 输出。
+当前仍是 MVP 迭代中，默认保留 mock 回退，方便在未配置火山引擎 AK/SK 时继续联调产品闭环。
 
 ## 当前能力边界
 
@@ -21,11 +22,11 @@
   - 首次同步和手动重新同步
   - 活动列表 / 活动详情
   - 生成任务创建
-  - mock 成品结果页
+  - 统一生成结果页
+  - 即梦 4.6 渲染接入
 - 暂未完成：
   - Strava webhook
   - 更稳的增量同步和退避策略
-  - 真实 AI 图像生成
   - 邮箱密码注册 / 登录 / 找回密码
 
 ## 技术栈
@@ -68,6 +69,30 @@ cp frontend/.env.example frontend/.env
   用于 Strava webhook 验证，建议与 state secret 分开设置
 - `STRAVA_SCOPES`
   默认建议 `read,activity:read_all`
+- `ART_RENDER_PROVIDER`
+  可选 `mock` 或 `jimeng46`；不填时会自动判断，如果即梦参数齐全则优先走 `jimeng46`
+- `VOLCENGINE_ACCESS_KEY`
+- `VOLCENGINE_SECRET_KEY`
+- `JIMENG_REQ_KEY`
+  请按即梦 4.6 官方接口文档填写对应模型的 `req_key`
+
+如果要启用即梦 4.6，建议同时补这些可选字段：
+
+- `JIMENG_API_HOST`
+  默认 `visual.volcengineapi.com`
+- `JIMENG_API_REGION`
+  默认 `cn-north-1`
+- `JIMENG_API_SERVICE`
+  默认 `cv`
+- `JIMENG_API_VERSION`
+  默认 `2022-08-31`
+- `JIMENG_SUBMIT_ACTION`
+  默认 `CVSync2AsyncSubmitTask`
+- `JIMENG_QUERY_ACTION`
+  默认 `CVSync2AsyncGetResult`
+- `JIMENG_NEGATIVE_PROMPT`
+- `JIMENG_POLL_INTERVAL_MS`
+- `JIMENG_POLL_MAX_ATTEMPTS`
 
 前端 `frontend/.env` 通常只需要保留：
 
@@ -141,7 +166,8 @@ pnpm run dev:web
 3. 授权成功后进入活动页。
 4. 点击“同步活动”。
 5. 打开某条活动详情，创建生成任务。
-6. 查看 mock 成品结果页并下载 SVG。
+6. 如果已配置即梦 4.6，等待远端生成完成；否则会自动回退到 mock。
+7. 查看结果页并下载成品。
 
 ## 常用命令
 
@@ -204,5 +230,5 @@ vue-pocketbase-template/
 
 1. 用真实 Strava 应用做一次端到端联调
 2. 补 webhook / 增量同步和同步退避
-3. 把 mock 渲染器替换成真实 AI 生成服务
+3. 打磨即梦 4.6 的 prompt、轮询和错误恢复
 4. 最后再补邮箱密码体系

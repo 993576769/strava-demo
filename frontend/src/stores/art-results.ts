@@ -7,6 +7,7 @@ type RenderMockJobResponse = {
   job?: unknown
   result?: unknown
   reused?: boolean
+  provider?: string
 }
 
 export const useArtResultsStore = defineStore('artResults', () => {
@@ -54,12 +55,15 @@ export const useArtResultsStore = defineStore('artResults', () => {
     }
   }
 
-  const renderMockJob = async (jobId: string) => {
+  const lastProvider = ref<string | null>(null)
+
+  const renderJob = async (jobId: string) => {
     rendering.value = true
     error.value = null
+    lastProvider.value = null
 
     try {
-      const response = await pb.send<RenderMockJobResponse>(`/api/art/jobs/${jobId}/mock-render`, {
+      const response = await pb.send<RenderMockJobResponse>(`/api/art/jobs/${jobId}/render`, {
         method: 'POST',
       })
       const result = isArtResult(response.result) ? response.result : null
@@ -69,10 +73,11 @@ export const useArtResultsStore = defineStore('artResults', () => {
 
       results.value = [result, ...results.value.filter((item) => item.id !== result.id)]
       currentResult.value = result
+      lastProvider.value = response.provider ?? null
       return result
     } catch (value) {
       console.error(value)
-      error.value = value instanceof Error ? value.message : '生成 mock 图片失败'
+      error.value = value instanceof Error ? value.message : '生成图片失败'
       return null
     } finally {
       rendering.value = false
@@ -83,6 +88,7 @@ export const useArtResultsStore = defineStore('artResults', () => {
     results.value = []
     currentResult.value = null
     error.value = null
+    lastProvider.value = null
   }
 
   return {
@@ -92,10 +98,11 @@ export const useArtResultsStore = defineStore('artResults', () => {
     detailLoading,
     rendering,
     error,
+    lastProvider,
     latestResult,
     fetchResultsForActivity,
     fetchResultById,
-    renderMockJob,
+    renderJob,
     clear,
   }
 })

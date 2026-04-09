@@ -69,10 +69,10 @@ const disconnectStrava = async () => {
         <div class="rounded-[28px] border border-[var(--color-border)]/50 bg-[var(--color-surface-card)] p-6 sm:p-8 shadow-[0_20px_50px_rgba(15,23,42,0.10)]">
           <p class="text-xs uppercase tracking-[0.28em] text-[var(--color-text-muted)]">Stage 1</p>
           <h2 class="text-2xl sm:text-4xl font-semibold text-[var(--color-text)] mt-3 leading-tight">
-            GitHub 登录、Strava 同步和 mock 成品链路已经接通。
+            GitHub 登录、Strava 同步和成品生成链路已经接通。
           </h2>
           <p class="mt-4 text-[var(--color-text-muted)] leading-7">
-            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成 mock 成品。
+            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成成品图；未配置即梦 4.6 时会自动回退到 mock。
           </p>
 
           <div class="mt-6 flex flex-wrap gap-3">
@@ -161,7 +161,7 @@ const disconnectStrava = async () => {
               </li>
               <li class="flex gap-3">
                 <span class="mt-1 w-2 h-2 rounded-full bg-primary shrink-0"></span>
-                当前已补上 Strava 连接管理、首次同步、本地活动读取和 mock 成品链路。
+                当前已补上 Strava 连接管理、首次同步、本地活动读取和统一成品生成链路。
               </li>
             </ul>
           </section>
