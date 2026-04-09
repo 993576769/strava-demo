@@ -101,6 +101,11 @@ routerAdd("POST", "/api/art/jobs", function (e) {
   return e.json(200, result)
 }, $apis.requireAuth("users"))
 
+routerAdd("POST", "/api/art/jobs/{id}/route-base", function (e) {
+  var routeBase = require(__hooks + "/route-base.js")
+  return e.json(200, routeBase.uploadRouteBase(e))
+}, $apis.requireAuth("users"))
+
 routerAdd("POST", "/api/art/jobs/{id}/render", function (e) {
   var renderArt = require(__hooks + "/render-art.js")
   return e.json(200, renderArt.renderJob(e))

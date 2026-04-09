@@ -87,17 +87,15 @@ const waitImageLoad = (image: HTMLImageElement, url: string) => new Promise<void
   image.src = url
 })
 
-const exportMapImage = async () => {
+const buildPngDataUrl = async () => {
   if (!svgRef.value || !hasEnoughPoints.value || typeof window === 'undefined')
-    return
+    return null
 
-  exporting.value = true
-  exportError.value = null
+  const svgMarkup = new XMLSerializer().serializeToString(svgRef.value)
+  const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' })
+  const objectUrl = URL.createObjectURL(blob)
 
   try {
-    const svgMarkup = new XMLSerializer().serializeToString(svgRef.value)
-    const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' })
-    const objectUrl = URL.createObjectURL(blob)
     const image = new Image()
     await waitImageLoad(image, objectUrl)
 
@@ -112,10 +110,23 @@ const exportMapImage = async () => {
 
     context.scale(scale, scale)
     context.drawImage(image, 0, 0, canvasWidth, canvasHeight)
+    return canvas.toDataURL('image/png')
+  } finally {
     URL.revokeObjectURL(objectUrl)
+  }
+}
+
+const exportMapImage = async () => {
+  exporting.value = true
+  exportError.value = null
+
+  try {
+    const dataUrl = await buildPngDataUrl()
+    if (!dataUrl)
+      return
 
     const link = document.createElement('a')
-    link.href = canvas.toDataURL('image/png')
+    link.href = dataUrl
     link.download = `${props.filename}.png`
     link.click()
   } catch (error) {
@@ -125,6 +136,10 @@ const exportMapImage = async () => {
     exporting.value = false
   }
 }
+
+defineExpose({
+  exportPngDataUrl: buildPngDataUrl,
+})
 </script>
 
 <template>

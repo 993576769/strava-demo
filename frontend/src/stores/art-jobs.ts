@@ -9,9 +9,15 @@ type CreateArtJobResponse = {
   reused?: boolean
 }
 
+type UploadRouteBaseResponse = {
+  job?: unknown
+  routeBaseImageUrl?: string
+}
+
 export const useArtJobsStore = defineStore('artJobs', () => {
   const jobs = ref<ArtJob[]>([])
   const creating = ref(false)
+  const uploadingRouteBase = ref(false)
   const loading = ref(false)
   const error = ref<string | null>(null)
   const lastCreateResult = ref<'created' | 'reused' | null>(null)
@@ -86,6 +92,40 @@ export const useArtJobsStore = defineStore('artJobs', () => {
     }
   }
 
+  const uploadRouteBase = async (jobId: string, dataUrl: string, fileName: string) => {
+    uploadingRouteBase.value = true
+    error.value = null
+
+    try {
+      const response = await pb.send<UploadRouteBaseResponse>(`/api/art/jobs/${jobId}/route-base`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: {
+          dataUrl,
+          fileName,
+        },
+      })
+
+      const job = isArtJob(response.job) ? response.job : null
+      if (job) {
+        jobs.value = [job, ...jobs.value.filter(item => item.id !== job.id)]
+      }
+
+      return {
+        job,
+        routeBaseImageUrl: response.routeBaseImageUrl ?? '',
+      }
+    } catch (value) {
+      console.error(value)
+      error.value = value instanceof Error ? value.message : '上传轨迹底稿失败'
+      return null
+    } finally {
+      uploadingRouteBase.value = false
+    }
+  }
+
   const clear = () => {
     jobs.value = []
     error.value = null
@@ -96,12 +136,14 @@ export const useArtJobsStore = defineStore('artJobs', () => {
     jobs,
     loading,
     creating,
+    uploadingRouteBase,
     error,
     latestJob,
     activeJob,
     lastCreateResult,
     fetchJobsForActivity,
     createJob,
+    uploadRouteBase,
     clear,
   }
 })

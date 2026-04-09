@@ -242,11 +242,16 @@ module.exports = {
     ].join(" ")
   },
 
-  buildSubmitBody: function (activityRecord, stylePreset, renderOptions) {
+  buildSubmitBody: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
+    if (!routeBaseImageUrl) {
+      throw new BadRequestError("Missing route base image URL for Jimeng image-to-image render")
+    }
+
     var body = {
       req_key: config.reqKey,
       prompt: this.buildPrompt(activityRecord, stylePreset, renderOptions),
+      image_urls: [routeBaseImageUrl],
       return_url: true,
     }
 
@@ -359,9 +364,9 @@ module.exports = {
     throw new BadRequestError("Jimeng task polling timed out")
   },
 
-  render: function (activityRecord, stylePreset, renderOptions) {
+  render: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
-    var submitPayload = this.sendSignedRequest(config.submitAction, this.buildSubmitBody(activityRecord, stylePreset, renderOptions))
+    var submitPayload = this.sendSignedRequest(config.submitAction, this.buildSubmitBody(activityRecord, stylePreset, renderOptions, routeBaseImageUrl))
     var taskId = this.extractTaskId(submitPayload)
 
     if (!taskId) {

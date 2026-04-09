@@ -9,12 +9,17 @@ import { useActivityStreamsStore } from '@/stores/activity-streams'
 import { useArtJobsStore } from '@/stores/art-jobs'
 import { useArtResultsStore } from '@/stores/art-results'
 
+type ActivityRouteMapExpose = {
+  exportPngDataUrl: () => Promise<string | null>
+}
+
 const route = useRoute()
 const router = useRouter()
 const activitiesStore = useActivitiesStore()
 const activityStreamsStore = useActivityStreamsStore()
 const artJobsStore = useArtJobsStore()
 const artResultsStore = useArtResultsStore()
+const routeMapRef = ref<ActivityRouteMapExpose | null>(null)
 
 const activityId = computed(() => String(route.params.id ?? ''))
 const activity = computed(() => activitiesStore.currentActivity)
@@ -115,6 +120,15 @@ const createArtJob = async () => {
 
   if (!job) {
     return
+  }
+
+  const routeBaseDataUrl = await routeMapRef.value?.exportPngDataUrl()
+  if (routeBaseDataUrl) {
+    await artJobsStore.uploadRouteBase(
+      job.id,
+      routeBaseDataUrl,
+      `${activity.value.sport_type || 'activity'}-${activity.value.id}-route-base`,
+    )
   }
 
   const result = await artResultsStore.renderJob(job.id)
@@ -226,6 +240,7 @@ onUnmounted(() => {
         </article>
 
         <ActivityRouteMap
+          ref="routeMapRef"
           :points="routePoints"
           :title="activity?.name || 'Untitled Activity'"
           :subtitle="routeSubtitle"
@@ -298,15 +313,23 @@ onUnmounted(() => {
               <div class="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   class="btn btn-primary"
-                  :disabled="!activity.is_generatable || artJobsStore.creating || artResultsStore.rendering"
+                  :disabled="!activity.is_generatable || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.rendering"
                   @click="createArtJob"
                 >
-                  <Loader2 v-if="artJobsStore.creating || artResultsStore.rendering" class="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.rendering" class="w-4 h-4 mr-2 animate-spin" />
                   <WandSparkles v-else class="w-4 h-4 mr-2" />
-                  {{ artJobsStore.creating || artResultsStore.rendering ? '正在生成图片...' : '生成成品' }}
+                  {{
+                    artJobsStore.creating
+                      ? '正在创建任务...'
+                      : artJobsStore.uploadingRouteBase
+                        ? '正在上传轨迹底稿...'
+                        : artResultsStore.rendering
+                          ? '正在生成图片...'
+                          : '生成成品'
+                  }}
                 </button>
                 <p class="text-sm text-[var(--color-text-muted)]">
-                  {{ activity.is_generatable ? '这一步会先创建任务，再由当前渲染 provider 产出成品。' : '当前活动不可生成，按钮已禁用。' }}
+                  {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由当前渲染 provider 产出成品。' : '当前活动不可生成，按钮已禁用。' }}
                 </p>
               </div>
             </div>

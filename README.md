@@ -71,6 +71,8 @@ cp frontend/.env.example frontend/.env
   默认建议 `read,activity:read_all`
 - `ART_RENDER_PROVIDER`
   可选 `mock` 或 `jimeng46`；不填时会自动判断，如果即梦参数齐全则优先走 `jimeng46`
+- `ART_ASSET_BASE_URL`
+  公开可访问的应用域名，用来拼接轨迹底稿图片 URL；图生图模式下必须能被火山引擎访问
 - `VOLCENGINE_ACCESS_KEY`
 - `VOLCENGINE_SECRET_KEY`
 - `JIMENG_REQ_KEY`

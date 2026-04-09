@@ -135,9 +135,14 @@ module.exports = {
     e.app.save(job)
   },
 
-  buildJimengAssets: function (activityRecord, stylePreset, renderOptions) {
+  buildJimengAssets: function (jobRecord, activityRecord, stylePreset, renderOptions) {
     var jimeng = require(__hooks + "/jimeng.js")
-    var renderResult = jimeng.render(activityRecord, stylePreset, renderOptions)
+    var routeBaseImageUrl = jobRecord.getString("route_base_image_url")
+    if (!routeBaseImageUrl) {
+      throw new BadRequestError("Missing route base image URL")
+    }
+
+    var renderResult = jimeng.render(activityRecord, stylePreset, renderOptions, routeBaseImageUrl)
     var size = this.getCanvasSize(renderOptions.aspectRatio)
     var title = activityRecord.getString("name") || "Untitled activity"
     var subtitle = this.buildSubtitle(activityRecord)
@@ -163,6 +168,7 @@ module.exports = {
         aspectRatio: renderOptions.aspectRatio,
         includeTitle: renderOptions.includeTitle,
         includeStats: renderOptions.includeStats,
+        routeBaseImageUrl: routeBaseImageUrl,
         outputKind: renderResult.imageAsset.kind,
         rawResult: renderResult.rawResult && renderResult.rawResult.Result ? renderResult.rawResult.Result : null,
       },
@@ -200,7 +206,7 @@ module.exports = {
 
     try {
       var assets = provider === "jimeng46"
-        ? this.buildJimengAssets(context.activity, stylePreset, renderOptions)
+        ? this.buildJimengAssets(context.job, context.activity, stylePreset, renderOptions)
         : this.buildMockAssets(context.activity, context.stream, stylePreset, renderOptions)
 
       var resultRecord = this.createResultRecord(e, {
