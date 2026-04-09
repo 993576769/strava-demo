@@ -1,0 +1,240 @@
+<script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ArrowLeft, CheckCircle2, Link2, RefreshCw, ShieldCheck, TriangleAlert, Unplug } from 'lucide-vue-next'
+import { useStravaStore } from '@/stores/strava'
+import { useSyncEventsStore } from '@/stores/sync-events'
+
+const router = useRouter()
+const stravaStore = useStravaStore()
+const syncEventsStore = useSyncEventsStore()
+
+const webhookEvents = computed(() => syncEventsStore.events.filter((event) => event.category === 'webhook'))
+const connectionEvents = computed(() => syncEventsStore.events.filter((event) => event.category === 'connection'))
+const syncEvents = computed(() => syncEventsStore.events.filter((event) => event.category === 'sync'))
+const callbackBase = computed(() => {
+  if (import.meta.env.VITE_PB_URL) {
+    return import.meta.env.VITE_PB_URL.replace(/\/$/, '')
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return ''
+})
+const webhookVerifyUrl = computed(() => `${callbackBase.value}/api/integrations/strava/webhook`)
+
+const formatDateTime = (value: string) => {
+  return new Date(value).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const eventToneClass = (status: string) => {
+  switch (status) {
+    case 'success':
+      return 'bg-emerald-500/12 text-emerald-600'
+    case 'warning':
+      return 'bg-amber-500/12 text-amber-600'
+    case 'error':
+      return 'bg-red-500/12 text-red-500'
+    default:
+      return 'bg-slate-500/12 text-slate-600'
+  }
+}
+
+const eventStatusLabel = (status: string) => {
+  switch (status) {
+    case 'success':
+      return '成功'
+    case 'warning':
+      return '警告'
+    case 'error':
+      return '失败'
+    default:
+      return '信息'
+  }
+}
+
+const refreshPage = async () => {
+  await Promise.all([
+    stravaStore.fetchConnection(),
+    syncEventsStore.fetchLatestEvents(),
+  ])
+}
+
+const reconnect = async () => {
+  await stravaStore.startConnection()
+}
+
+const disconnect = async () => {
+  await stravaStore.disconnect()
+  await syncEventsStore.fetchLatestEvents()
+}
+
+onMounted(async () => {
+  await refreshPage()
+})
+</script>
+
+<template>
+  <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <button class="btn btn-ghost" @click="router.back()">
+          <ArrowLeft class="w-4 h-4 mr-2" />
+          返回上一页
+        </button>
+
+        <button class="btn btn-ghost" @click="refreshPage">
+          <RefreshCw class="w-4 h-4 mr-2" />
+          刷新状态页
+        </button>
+      </div>
+
+      <section class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 sm:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+          <p class="text-xs uppercase tracking-[0.26em] text-[var(--color-text-muted)]">Dev Panel</p>
+          <h1 class="mt-3 text-2xl sm:text-3xl font-semibold text-[var(--color-text)]">Webhook 状态页</h1>
+          <p class="mt-3 text-[var(--color-text-muted)] leading-7">
+            这个页面用于开发联调。你可以在这里确认当前 Strava 连接状态、webhook 回调地址，以及最近一次 webhook / 同步事件是否真的进入了系统。
+          </p>
+
+          <div class="mt-6 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
+              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">连接状态</p>
+              <p class="mt-2 text-sm font-semibold text-[var(--color-text)]">{{ stravaStore.statusLabel }}</p>
+              <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+                {{ stravaStore.athleteLabel ? `绑定账号：${stravaStore.athleteLabel}` : '还没有可展示的 Strava 账号标识' }}
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
+              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">最近 webhook</p>
+              <p class="mt-2 text-sm font-semibold text-[var(--color-text)]">
+                {{ stravaStore.connection?.last_webhook_at ? formatDateTime(stravaStore.connection.last_webhook_at) : '还没有收到 webhook' }}
+              </p>
+              <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+                {{ stravaStore.lastSyncAt ? `最近同步：${formatDateTime(stravaStore.lastSyncAt)}` : '最近同步时间尚未记录' }}
+              </p>
+            </div>
+          </div>
+
+          <div v-if="stravaStore.hasConnectionIssue" class="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-700">
+            <p class="font-semibold">{{ stravaStore.needsReauthorization ? '当前需要重新授权 Strava' : '当前连接存在异常' }}</p>
+            <p class="mt-1 leading-6">
+              {{ stravaStore.lastErrorMessage || '连接已失效、被撤销，或者 token 刷新失败。' }}
+            </p>
+            <div class="mt-3 flex flex-wrap gap-3">
+              <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="reconnect">
+                <Link2 class="w-4 h-4 mr-2" />
+                {{ stravaStore.needsReauthorization ? '重新授权 Strava' : '重新连接 Strava' }}
+              </button>
+              <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnect">
+                <Unplug class="w-4 h-4 mr-2" />
+                {{ stravaStore.disconnecting ? '正在断开连接...' : '断开当前连接' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-6 rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)]/35 p-5">
+            <div class="flex items-start gap-3">
+              <ShieldCheck class="w-5 h-5 mt-1 text-primary shrink-0" />
+              <div class="min-w-0">
+                <h2 class="text-base font-semibold text-[var(--color-text)]">联调检查清单</h2>
+                <div class="mt-4 grid gap-3">
+                  <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Webhook Callback URL</p>
+                    <p class="mt-2 break-all text-sm font-medium text-[var(--color-text)]">{{ webhookVerifyUrl }}</p>
+                  </div>
+                  <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">需要确认</p>
+                    <ul class="mt-2 space-y-2 text-sm text-[var(--color-text-muted)]">
+                      <li>Strava 应用中的 callback domain 与当前 PocketBase 域名一致。</li>
+                      <li>`.env` 中的 `STRAVA_WEBHOOK_VERIFY_TOKEN` 与订阅时填写的 `verify_token` 一致。</li>
+                      <li>收到 webhook 后，下面的“最近 webhook 事件”列表会新增一条记录。</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="grid gap-4">
+          <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <h2 class="text-base font-semibold text-[var(--color-text)]">最近 webhook 事件</h2>
+            <div v-if="syncEventsStore.loading" class="mt-4 text-sm text-[var(--color-text-muted)]">正在读取事件...</div>
+            <div v-else-if="webhookEvents.length === 0" class="mt-4 text-sm text-[var(--color-text-muted)]">还没有 webhook 事件记录。</div>
+            <div v-else class="mt-4 grid gap-3">
+              <div v-for="event in webhookEvents" :key="event.id" class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-semibold text-[var(--color-text)]">{{ event.title }}</span>
+                  <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="eventToneClass(event.status)">
+                    {{ eventStatusLabel(event.status) }}
+                  </span>
+                </div>
+                <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{{ event.message || '暂无附加说明' }}</p>
+                <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ formatDateTime(event.created) }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <h2 class="text-base font-semibold text-[var(--color-text)]">最近同步 / 连接事件</h2>
+            <div v-if="syncEventsStore.loading" class="mt-4 text-sm text-[var(--color-text-muted)]">正在读取事件...</div>
+            <div v-else-if="syncEvents.length === 0 && connectionEvents.length === 0" class="mt-4 text-sm text-[var(--color-text-muted)]">
+              还没有同步或连接事件记录。
+            </div>
+            <div v-else class="mt-4 grid gap-3">
+              <div
+                v-for="event in [...connectionEvents, ...syncEvents].sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()).slice(0, 6)"
+                :key="event.id"
+                class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-semibold text-[var(--color-text)]">{{ event.title }}</span>
+                  <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="eventToneClass(event.status)">
+                    {{ eventStatusLabel(event.status) }}
+                  </span>
+                  <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                    {{ event.category }}
+                  </span>
+                </div>
+                <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{{ event.message || '暂无附加说明' }}</p>
+                <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ formatDateTime(event.created) }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section v-if="stravaStore.connection?.last_webhook_at" class="rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <div class="flex items-start gap-3">
+              <CheckCircle2 class="w-5 h-5 mt-1 text-emerald-600 shrink-0" />
+              <div>
+                <h2 class="text-base font-semibold text-[var(--color-text)]">最近 webhook 已到达</h2>
+                <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                  最近一次 webhook 到达时间是 {{ formatDateTime(stravaStore.connection.last_webhook_at) }}。如果同时能在上面的事件列表里看到新记录，说明回调链路基本正常。
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section v-else class="rounded-[28px] border border-amber-500/20 bg-amber-500/10 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <div class="flex items-start gap-3">
+              <TriangleAlert class="w-5 h-5 mt-1 text-amber-600 shrink-0" />
+              <div>
+                <h2 class="text-base font-semibold text-[var(--color-text)]">还没有收到 webhook</h2>
+                <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                  如果你已经创建了 Strava webhook 订阅，但这里仍然一直为空，优先检查 callback URL、verify token 和公网可达性。
+                </p>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+</template>

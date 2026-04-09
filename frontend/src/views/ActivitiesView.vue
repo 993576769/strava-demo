@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
+import { Antenna, ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { useActivitiesStore } from '@/stores/activities'
 import { useStravaStore } from '@/stores/strava'
 import { useSyncEventsStore } from '@/stores/sync-events'
@@ -91,6 +91,10 @@ const openActivity = (id: string) => {
   router.push({ name: 'activity-detail', params: { id } })
 }
 
+const openWebhookStatus = () => {
+  router.push({ name: 'webhook-status' })
+}
+
 const refreshPage = async () => {
   await Promise.all([
     stravaStore.fetchConnection(),
@@ -154,6 +158,10 @@ onMounted(async () => {
             <button class="btn btn-ghost" @click="refreshPage">
               <RefreshCw class="w-4 h-4 mr-2" />
               刷新状态
+            </button>
+            <button class="btn btn-ghost" @click="openWebhookStatus">
+              <Antenna class="w-4 h-4 mr-2" />
+              Webhook 状态
             </button>
           </div>
         </div>
