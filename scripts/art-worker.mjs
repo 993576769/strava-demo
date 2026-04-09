@@ -53,11 +53,13 @@ const pollIntervalMs = Number.parseInt(process.env.ART_WORKER_POLL_INTERVAL_MS |
 const failureBackoffMs = Number.parseInt(process.env.ART_WORKER_FAILURE_BACKOFF_MS || '5000', 10)
 const idleHeartbeatMs = Number.parseInt(process.env.ART_WORKER_IDLE_HEARTBEAT_MS || '30000', 10)
 const staleProcessingMs = Number.parseInt(process.env.ART_WORKER_STALE_PROCESSING_MS || '120000', 10)
-const retryDelayMs = Number.parseInt(process.env.ART_WORKER_RETRY_DELAY_MS || '30000', 10)
+const retryDelayMs = Number.parseInt(process.env.ART_WORKER_RETRY_DELAY_MS || '120000', 10)
+const rateLimitRetryDelayMs = Number.parseInt(process.env.ART_WORKER_RATE_LIMIT_RETRY_DELAY_MS || '300000', 10)
 const maxConcurrentJobs = Math.max(1, Number.parseInt(process.env.ART_WORKER_MAX_CONCURRENT_JOBS || '1', 10))
 const adminEmail = process.env.PB_ADMIN_EMAIL || ''
 const adminPassword = process.env.PB_ADMIN_PASSWORD || ''
 const retryableJimengCodes = new Set(['50511', '50519', '50429', '50430'])
+const rateLimitedJimengCodes = new Set(['50429', '50430'])
 
 const pb = new PocketBase(pbBaseUrl)
 let stopping = false
@@ -219,6 +221,24 @@ const scheduleRetry = async (jobId, delayMs) => {
   return true
 }
 
+const getRetryDelayForJob = (job, error) => {
+  var code = ''
+
+  if (job && job.error_message) {
+    code = extractJimengErrorCode(job.error_message)
+  }
+
+  if (!code && error && typeof error === 'object' && 'message' in error) {
+    code = extractJimengErrorCode(error.message)
+  }
+
+  if (rateLimitedJimengCodes.has(code)) {
+    return rateLimitRetryDelayMs
+  }
+
+  return retryDelayMs
+}
+
 const log = (message) => {
   process.stdout.write(`${message}\n`)
 }
@@ -301,9 +321,10 @@ const loop = async () => {
           })
 
           if (isRetryableError(error, claimedJob)) {
-            const scheduled = await scheduleRetry(claimedJobId, retryDelayMs)
+            const delayMs = getRetryDelayForJob(claimedJob, error)
+            const scheduled = await scheduleRetry(claimedJobId, delayMs)
             if (scheduled) {
-              log(`requeued ${claimedJobId} after upstream concurrency limit; retrying in ${retryDelayMs}ms`)
+              log(`requeued ${claimedJobId} after retryable Jimeng error; retrying in ${delayMs}ms`)
             }
           } else {
             const requeued = await requeueJobIfStuck(claimedJobId)

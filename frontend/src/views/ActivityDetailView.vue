@@ -28,6 +28,36 @@ const selectedAspectRatio = ref<AspectRatio>('portrait')
 const includeTitle = ref(true)
 const createFeedback = ref('')
 let queuePollingTimer: number | null = null
+
+const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
+  if (value && typeof value === 'object' && !Array.isArray(value))
+    return value as Record<string, unknown>
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : null
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
+const getSummaryPolyline = (source: unknown) => {
+  const raw = parseJsonObject(source)
+  const map = raw && 'map' in raw ? parseJsonObject(raw.map) : null
+  const encoded = map && 'summary_polyline' in map ? map.summary_polyline : ''
+
+  if (typeof encoded !== 'string' || encoded.length === 0)
+    return null
+
+  return encoded
+}
+
 const routeSubtitle = computed(() => {
   if (!activity.value) return ''
 
@@ -38,6 +68,11 @@ const routeSubtitle = computed(() => {
     parts.push(new Date(activity.value.start_date).toLocaleDateString('zh-CN'))
 
   return parts.join(' · ')
+})
+const encodedPolyline = computed(() => {
+  return getSummaryPolyline(activity.value?.raw_summary_json)
+    ?? getSummaryPolyline(activity.value?.raw_detail_json)
+    ?? ''
 })
 const routePoints = computed(() => {
   return activityStreamsStore.currentStream?.normalized_path_json
@@ -291,6 +326,7 @@ onUnmounted(() => {
 
         <ActivityRouteMap
           ref="routeMapRef"
+          :encoded-polyline="encodedPolyline"
           :points="routePoints"
           :title="activity?.name || 'Untitled Activity'"
           :subtitle="routeSubtitle"
