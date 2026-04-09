@@ -4,11 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { useActivitiesStore } from '@/stores/activities'
 import { useStravaStore } from '@/stores/strava'
+import { useSyncEventsStore } from '@/stores/sync-events'
 
 const route = useRoute()
 const router = useRouter()
 const activitiesStore = useActivitiesStore()
 const stravaStore = useStravaStore()
+const syncEventsStore = useSyncEventsStore()
 
 const hasActivities = computed(() => activitiesStore.activities.length > 0)
 const stravaQueryStatus = computed(() => {
@@ -59,6 +61,32 @@ const formatDistance = (meters: number) => {
   return `${(meters / 1000).toFixed(1)} km`
 }
 
+const eventToneClass = (status: string) => {
+  switch (status) {
+    case 'success':
+      return 'bg-emerald-500/12 text-emerald-600'
+    case 'warning':
+      return 'bg-amber-500/12 text-amber-600'
+    case 'error':
+      return 'bg-red-500/12 text-red-500'
+    default:
+      return 'bg-slate-500/12 text-slate-600'
+  }
+}
+
+const eventStatusLabel = (status: string) => {
+  switch (status) {
+    case 'success':
+      return '成功'
+    case 'warning':
+      return '警告'
+    case 'error':
+      return '失败'
+    default:
+      return '信息'
+  }
+}
+
 const openActivity = (id: string) => {
   router.push({ name: 'activity-detail', params: { id } })
 }
@@ -67,18 +95,25 @@ const refreshPage = async () => {
   await Promise.all([
     stravaStore.fetchConnection(),
     activitiesStore.fetchActivities(),
+    syncEventsStore.fetchLatestEvents(),
   ])
 }
 
 const syncActivities = async () => {
   await stravaStore.runSync()
-  await activitiesStore.fetchActivities()
+  await Promise.all([
+    activitiesStore.fetchActivities(),
+    syncEventsStore.fetchLatestEvents(),
+  ])
 }
 
 const disconnectStrava = async () => {
   const disconnected = await stravaStore.disconnect()
   if (disconnected) {
-    await activitiesStore.fetchActivities()
+    await Promise.all([
+      activitiesStore.fetchActivities(),
+      syncEventsStore.fetchLatestEvents(),
+    ])
   }
 }
 
@@ -286,6 +321,59 @@ onMounted(async () => {
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                 当前活动页已经可以读取本地 collections，也支持发起真实 Strava 首次同步。下一步会继续补 webhook 和更稳定的增量同步。
               </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+          <div class="flex items-start gap-3">
+            <RefreshCw class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-semibold text-[var(--color-text)]">最近事件</h2>
+              <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
+                这里会记录最近一次同步、webhook 更新和连接变更，方便联调时快速判断系统刚刚做了什么。
+              </p>
+
+              <div v-if="syncEventsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                正在读取最近事件...
+              </div>
+
+              <div v-else-if="syncEventsStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-500">
+                {{ syncEventsStore.error }}
+              </div>
+
+              <div v-else-if="syncEventsStore.events.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
+                还没有事件记录。完成一次同步或收到 webhook 后，这里会显示最近日志。
+              </div>
+
+              <div v-else class="mt-5 grid gap-3">
+                <div
+                  v-for="event in syncEventsStore.events"
+                  :key="event.id"
+                  class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
+                >
+                  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-semibold text-[var(--color-text)]">{{ event.title }}</span>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="eventToneClass(event.status)">
+                          {{ eventStatusLabel(event.status) }}
+                        </span>
+                        <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                          {{ event.category }}
+                        </span>
+                      </div>
+                      <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                        {{ event.message || '暂无附加说明' }}
+                      </p>
+                    </div>
+
+                    <p class="shrink-0 text-sm text-[var(--color-text-muted)]">
+                      {{ formatDateTime(event.created) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>

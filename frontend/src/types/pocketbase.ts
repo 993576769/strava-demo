@@ -4,6 +4,7 @@ import type {
   ArtJobsResponse,
   ArtResultsResponse,
   StravaConnectionsResponse,
+  SyncEventsResponse,
   TodoCreate,
   TodoUpdate,
   TodosResponse,
@@ -24,6 +25,8 @@ export type ActivityVisibility = 'public' | 'followers_only' | 'only_me' | 'unkn
 export type ActivitySyncStatus = 'pending_detail' | 'ready' | 'partial' | 'failed'
 export type ArtJobStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | 'canceled'
 export type ArtResultVisibility = 'private' | 'unlisted' | 'public'
+export type SyncEventCategory = 'sync' | 'webhook' | 'connection'
+export type SyncEventStatus = 'info' | 'success' | 'warning' | 'error'
 export type TodoCreateInput = Omit<TodoCreate, 'priority'> & {
   priority?: Priority
 }
@@ -40,6 +43,7 @@ export type Activity = ActivitiesResponse<{ user?: UsersResponse; connection?: S
 export type ActivityStream = ActivityStreamsResponse<{ activity?: ActivitiesResponse }>
 export type ArtJob = ArtJobsResponse<{ activity?: ActivitiesResponse; stream?: ActivityStreamsResponse; user?: UsersResponse }>
 export type ArtResult = ArtResultsResponse<{ activity?: ActivitiesResponse; job?: ArtJobsResponse; user?: UsersResponse }>
+export type SyncEvent = SyncEventsResponse<{ user?: UsersResponse }>
 export type Todo = TodosResponse<string[], { user?: UsersResponse }>
 
 export type { TypedPocketBase }
@@ -81,6 +85,8 @@ export const artResultVisibilityValues = [
   'unlisted',
   'public',
 ] as const satisfies readonly ArtResultVisibility[]
+export const syncEventCategoryValues = ['sync', 'webhook', 'connection'] as const satisfies readonly SyncEventCategory[]
+export const syncEventStatusValues = ['info', 'success', 'warning', 'error'] as const satisfies readonly SyncEventStatus[]
 export const filterStatusValues = ['all', 'active', 'completed'] as const satisfies readonly FilterStatus[]
 
 export const isPriority = (value: unknown): value is Priority =>
@@ -103,6 +109,12 @@ export const isArtJobStatus = (value: unknown): value is ArtJobStatus =>
 
 export const isArtResultVisibility = (value: unknown): value is ArtResultVisibility =>
   typeof value === 'string' && artResultVisibilityValues.includes(value as ArtResultVisibility)
+
+export const isSyncEventCategory = (value: unknown): value is SyncEventCategory =>
+  typeof value === 'string' && syncEventCategoryValues.includes(value as SyncEventCategory)
+
+export const isSyncEventStatus = (value: unknown): value is SyncEventStatus =>
+  typeof value === 'string' && syncEventStatusValues.includes(value as SyncEventStatus)
 
 export const isFilterStatus = (value: unknown): value is FilterStatus =>
   typeof value === 'string' && filterStatusValues.includes(value as FilterStatus)
@@ -178,6 +190,19 @@ export const isArtResult = (value: unknown): value is ArtResult => {
     'job' in value &&
     'activity' in value &&
     'image_data_uri' in value
+  )
+}
+
+export const isSyncEvent = (value: unknown): value is SyncEvent => {
+  if (typeof value !== 'object' || value === null) return false
+
+  return (
+    'collectionName' in value &&
+    value.collectionName === 'sync_events' &&
+    'id' in value &&
+    'category' in value &&
+    'status' in value &&
+    'title' in value
   )
 }
 

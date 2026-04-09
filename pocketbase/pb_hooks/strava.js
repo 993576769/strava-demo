@@ -32,6 +32,28 @@ module.exports = {
     return this.getOptionalEnv("STRAVA_WEBHOOK_VERIFY_TOKEN", this.getStateSecret())
   },
 
+  logEvent: function (userId, category, status, title, message, payload) {
+    if (!userId) {
+      return null
+    }
+
+    try {
+      var collection = $app.findCollectionByNameOrId("sync_events")
+      var record = new Record(collection)
+      record.set("user", userId)
+      record.set("provider", "strava")
+      record.set("category", category)
+      record.set("status", status)
+      record.set("title", title)
+      record.set("message", message || "")
+      record.set("payload_json", payload || null)
+      $app.save(record)
+      return record
+    } catch (_) {
+      return null
+    }
+  },
+
   getEncryptionKey: function () {
     var rawKey = $os.getenv("STRAVA_TOKEN_ENCRYPTION_KEY") || this.getStateSecret()
     return $security.sha256(rawKey).slice(0, 32)
@@ -469,6 +491,7 @@ module.exports = {
   syncActivities: function (userId) {
     var connection = this.getConnectionForUser(userId)
     if (!connection) {
+      this.logEvent(userId, "sync", "error", "Strava 同步失败", "当前用户还没有有效的 Strava 连接。", null)
       throw new BadRequestError("Strava connection not found")
     }
 
@@ -484,6 +507,9 @@ module.exports = {
       connection.set("last_error_code", "token_refresh_failed")
       connection.set("last_error_message", error && error.message ? error.message : "Failed to refresh Strava token")
       $app.save(connection)
+      this.logEvent(userId, "sync", "error", "Strava 同步失败", "刷新 Strava access token 失败。", {
+        error: error && error.message ? error.message : "token_refresh_failed",
+      })
       throw error
     }
 
@@ -583,6 +609,14 @@ module.exports = {
     connection.set("last_error_code", "")
     connection.set("last_error_message", "")
     $app.save(connection)
+    this.logEvent(
+      userId,
+      "sync",
+      stats.failed > 0 ? "warning" : "success",
+      stats.failed > 0 ? "Strava 同步完成（部分失败）" : "Strava 同步完成",
+      "本次同步抓取 " + stats.fetched + " 条活动，新增 " + stats.created + " 条，更新 " + stats.updated + " 条。",
+      stats
+    )
 
     return {
       connection: connection,
@@ -653,29 +687,42 @@ module.exports = {
     if (!connection) {
       return { ignored: true, reason: "connection_not_found" }
     }
+    var userId = connection.getString("user")
 
     connection.set("last_webhook_at", new Date().toISOString())
     $app.save(connection)
 
     if (objectType === "athlete" && updates && updates.authorized === "false") {
       this.revokeConnection(connection, "webhook_deauthorized")
+      this.logEvent(userId, "webhook", "warning", "Strava webhook：授权已撤销", "Strava 推送了 athlete deauthorize 事件，连接已被标记为 revoked。", payload)
       return { handled: true, action: "revoked" }
     }
 
     if (objectType !== "activity" || !objectId) {
+      this.logEvent(userId, "webhook", "info", "Strava webhook：已忽略事件", "收到了暂不处理的 webhook 类型。", payload)
       return { ignored: true, reason: "unsupported_object_type" }
     }
 
     if (aspectType === "delete") {
       this.deleteActivityBySourceId(objectId, connection.getString("user"))
+      this.logEvent(userId, "webhook", "warning", "Strava webhook：活动已删除", "本地已根据 webhook 删除对应活动记录。", payload)
       return { handled: true, action: "deleted" }
     }
 
     if (aspectType === "create" || aspectType === "update") {
       this.syncSingleActivity(connection, objectId)
+      this.logEvent(
+        userId,
+        "webhook",
+        "success",
+        aspectType === "create" ? "Strava webhook：新活动已同步" : "Strava webhook：活动更新已同步",
+        aspectType === "create" ? "检测到新活动，已按单条活动同步到本地。" : "检测到活动更新，已刷新本地活动和轨迹数据。",
+        payload
+      )
       return { handled: true, action: aspectType === "create" ? "synced_created_activity" : "synced_updated_activity" }
     }
 
+    this.logEvent(userId, "webhook", "info", "Strava webhook：已忽略事件", "收到了暂不处理的 aspect type。", payload)
     return { ignored: true, reason: "unsupported_aspect_type" }
   },
 
@@ -689,6 +736,7 @@ module.exports = {
     }
 
     this.revokeConnection(connection, "")
+    this.logEvent(userId, "connection", "warning", "Strava 已断开连接", "用户手动断开了当前 Strava 授权连接。", null)
 
     return {
       disconnected: true,

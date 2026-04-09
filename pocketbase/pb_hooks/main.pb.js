@@ -64,6 +64,11 @@ routerAdd("POST", "/api/integrations/strava/webhook", function (e) {
     utils.processWebhookEvent(body)
   } catch (err) {
     console.log(err)
+    var ownerId = body && body.owner_id
+    var connection = ownerId ? utils.getConnectionByAthleteId(ownerId) : null
+    if (connection) {
+      utils.logEvent(connection.getString("user"), "webhook", "error", "Strava webhook 处理失败", err && err.message ? err.message : "Unknown webhook processing error", body)
+    }
   }
 
   return e.json(200, {

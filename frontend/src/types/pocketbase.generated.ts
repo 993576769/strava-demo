@@ -13,6 +13,7 @@ export enum Collections {
   ArtJobs = 'art_jobs',
   ArtResults = 'art_results',
   StravaConnections = 'strava_connections',
+  SyncEvents = 'sync_events',
   Todos = 'todos',
   Users = 'users',
 }
@@ -204,6 +205,32 @@ export type ArtResultsRecord = {
   width?: number
 }
 
+export enum SyncEventsCategoryOptions {
+  Sync = 'sync',
+  Webhook = 'webhook',
+  Connection = 'connection',
+}
+
+export enum SyncEventsStatusOptions {
+  Info = 'info',
+  Success = 'success',
+  Warning = 'warning',
+  Error = 'error',
+}
+
+export type SyncEventsRecord = {
+  category: SyncEventsCategoryOptions
+  created?: IsoDateString
+  id: string
+  message?: string
+  payload_json?: unknown
+  provider: string
+  status: SyncEventsStatusOptions
+  title: string
+  updated?: IsoDateString
+  user: RecordIdString
+}
+
 export enum TodosPriorityOptions {
   Low = 'low',
   Medium = 'medium',
@@ -230,6 +257,7 @@ export type ActivitiesResponse<Texpand = unknown> = Required<ActivitiesRecord> &
 export type ActivityStreamsResponse<Texpand = unknown> = Required<ActivityStreamsRecord> & BaseSystemFields<Texpand>
 export type ArtJobsResponse<Texpand = unknown> = Required<ArtJobsRecord> & BaseSystemFields<Texpand>
 export type ArtResultsResponse<Texpand = unknown> = Required<ArtResultsRecord> & BaseSystemFields<Texpand>
+export type SyncEventsResponse<Texpand = unknown> = Required<SyncEventsRecord> & BaseSystemFields<Texpand>
 export type TodosResponse<Ttags = unknown, Texpand = unknown> = Required<TodosRecord<Ttags>> & BaseSystemFields<Texpand>
 
 export type CollectionRecords = {
@@ -238,6 +266,7 @@ export type CollectionRecords = {
   art_jobs: ArtJobsRecord
   art_results: ArtResultsRecord
   strava_connections: StravaConnectionsRecord
+  sync_events: SyncEventsRecord
   todos: TodosRecord
   users: UsersRecord
 }
@@ -248,6 +277,7 @@ export type CollectionResponses = {
   art_jobs: ArtJobsResponse
   art_results: ArtResultsResponse
   strava_connections: StravaConnectionsResponse
+  sync_events: SyncEventsResponse
   todos: TodosResponse
   users: UsersResponse
 }
@@ -278,6 +308,7 @@ export type TypedPocketBase = PocketBase & {
   collection(idOrName: 'art_jobs'): RecordService<ArtJobsResponse>
   collection(idOrName: 'art_results'): RecordService<ArtResultsResponse>
   collection(idOrName: 'strava_connections'): RecordService<StravaConnectionsResponse>
+  collection(idOrName: 'sync_events'): RecordService<SyncEventsResponse>
   collection(idOrName: 'todos'): RecordService<TodosResponse>
   collection(idOrName: 'users'): RecordService<UsersResponse>
 }
