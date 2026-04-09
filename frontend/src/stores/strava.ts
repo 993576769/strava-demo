@@ -56,6 +56,10 @@ export const useStravaStore = defineStore('strava', () => {
 
   const statusLabel = computed(() => statusLabelMap[status.value])
   const lastSyncAt = computed(() => connection.value?.last_sync_at ?? null)
+  const athleteLabel = computed(() => connection.value?.strava_username || connection.value?.strava_athlete_id || '')
+  const lastErrorMessage = computed(() => connection.value?.last_error_message || '')
+  const needsReauthorization = computed(() => status.value === 'reauthorization_required')
+  const hasConnectionIssue = computed(() => status.value === 'error' || status.value === 'reauthorization_required')
   const canConnect = computed(() => {
     return status.value === 'not_connected' || status.value === 'error' || status.value === 'reauthorization_required'
   })
@@ -184,6 +188,10 @@ export const useStravaStore = defineStore('strava', () => {
     syncSummary,
     status,
     statusLabel,
+    athleteLabel,
+    lastErrorMessage,
+    needsReauthorization,
+    hasConnectionIssue,
     lastSyncAt,
     canConnect,
     canSync,

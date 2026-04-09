@@ -127,7 +127,13 @@ onMounted(async () => {
           <div class="rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
             <p class="text-xs uppercase tracking-[0.22em] text-[var(--color-text-muted)]">Strava</p>
             <p class="mt-2 text-base font-semibold text-[var(--color-text)]">{{ stravaStore.statusLabel }}</p>
-            <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ stravaStore.lastSyncAt ? `最近同步：${new Date(stravaStore.lastSyncAt).toLocaleString()}` : '首次同步尚未开始' }}</p>
+            <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+              {{
+                stravaStore.athleteLabel
+                  ? `已绑定：${stravaStore.athleteLabel}`
+                  : (stravaStore.lastSyncAt ? `最近同步：${new Date(stravaStore.lastSyncAt).toLocaleString()}` : '首次同步尚未开始')
+              }}
+            </p>
           </div>
 
           <div class="rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
@@ -145,6 +151,25 @@ onMounted(async () => {
 
         <div v-if="stravaStore.error" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {{ stravaStore.error }}
+        </div>
+
+        <div v-if="stravaStore.hasConnectionIssue" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-700">
+          <p class="font-semibold">
+            {{ stravaStore.needsReauthorization ? 'Strava 连接需要重新授权' : 'Strava 连接存在异常' }}
+          </p>
+          <p class="mt-1 leading-6">
+            {{ stravaStore.lastErrorMessage || '当前连接可能已过期、被撤销或本地 token 已失效。重新连接后会继续沿用当前产品账号。' }}
+          </p>
+          <div class="mt-3 flex flex-wrap gap-3">
+            <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="stravaStore.startConnection">
+              <Link2 class="w-4 h-4 mr-2" />
+              {{ stravaStore.needsReauthorization ? '重新授权 Strava' : '重新连接 Strava' }}
+            </button>
+            <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnectStrava">
+              <Unplug class="w-4 h-4 mr-2" />
+              断开当前连接
+            </button>
+          </div>
         </div>
 
         <div

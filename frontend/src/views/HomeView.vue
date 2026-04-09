@@ -115,6 +115,30 @@ const disconnectStrava = async () => {
         </div>
 
         <div class="grid gap-4">
+          <section v-if="strava.hasConnectionIssue" class="rounded-[28px] border border-amber-500/20 bg-amber-500/10 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+            <div class="flex items-start gap-3">
+              <ShieldCheck class="w-5 h-5 mt-1 text-amber-600 shrink-0" />
+              <div>
+                <h3 class="text-base font-semibold text-[var(--color-text)]">
+                  {{ strava.needsReauthorization ? 'Strava 需要重新授权' : 'Strava 连接异常' }}
+                </h3>
+                <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                  {{ strava.lastErrorMessage || '当前连接状态异常，重新连接后即可继续同步活动。' }}
+                </p>
+                <div class="mt-4 flex flex-wrap gap-3">
+                  <button class="btn btn-primary" :disabled="strava.connecting || !strava.canConnect" @click="strava.startConnection">
+                    <Link2 class="w-4 h-4 mr-2" />
+                    {{ strava.needsReauthorization ? '重新授权 Strava' : '重新连接 Strava' }}
+                  </button>
+                  <button class="btn btn-ghost" :disabled="!strava.canDisconnect" @click="disconnectStrava">
+                    <Unplug class="w-4 h-4 mr-2" />
+                    {{ strava.disconnecting ? '正在断开连接...' : '断开当前连接' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section class="rounded-[28px] border border-[var(--color-border)]/50 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
             <div class="flex items-center gap-3">
               <div class="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
@@ -137,7 +161,7 @@ const disconnectStrava = async () => {
               </li>
               <li class="flex gap-3">
                 <span class="mt-1 w-2 h-2 rounded-full bg-primary shrink-0"></span>
-                当前已补上 Strava 连接管理、首次同步和本地活动读取。
+                当前已补上 Strava 连接管理、首次同步、本地活动读取和 mock 成品链路。
               </li>
             </ul>
           </section>

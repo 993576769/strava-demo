@@ -1,24 +1,32 @@
-# Vue PocketBase Template
+# Strava Art Lab
 
-一个可直接二次开发的 `Vue 3 + TypeScript + Pinia + PocketBase` 起步模板。
+一个基于 `Vue 3 + Pinia + PocketBase` 的运动轨迹作品生成项目。
 
-这个模板保留了几类最常见的基础能力：
-- 用户注册 / 登录
-- PocketBase 记录类型生成
-- 实时订阅
-- 主题切换
-- 一个可替换的示例业务模块（当前是 `todos`）
-- Docker Compose 本地启动
+当前主线已经接通到这一步：
+- GitHub 登录产品账号
+- 连接 Strava 并读取授权状态
+- 手动同步 Strava 活动到本地 `activities` / `activity_streams`
+- 从活动创建 `art_jobs`
+- 使用 mock SVG 渲染器生成 `art_results`
+- 查看结果详情并下载 mock 成品
 
-## 适合什么场景
+当前仍是 MVP 迭代中，图片生成先用 mock 渲染器替代真实 AI 输出。
 
-适合拿来做新的后台、小型 SaaS、内部工具、个人项目原型。
+## 当前能力边界
 
-如果你要做新项目，通常只需要改这几层：
-- `pocketbase/pb_migrations`：换成你的数据结构
-- `frontend/src/stores`：改成你的业务 store
-- `frontend/src/views`：换成你的页面
-- `frontend/src/types/pocketbase.ts`：根据生成类型调整前端别名
+- 产品登录当前只支持 GitHub OAuth。
+- Strava 只负责数据授权，不负责产品登录。
+- 已支持：
+  - Strava 连接 / 断开 / 状态读取
+  - 首次同步和手动重新同步
+  - 活动列表 / 活动详情
+  - 生成任务创建
+  - mock 成品结果页
+- 暂未完成：
+  - Strava webhook
+  - 更稳的增量同步和退避策略
+  - 真实 AI 图像生成
+  - 邮箱密码注册 / 登录 / 找回密码
 
 ## 技术栈
 
@@ -45,6 +53,25 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env
 ```
 
+根目录 `.env` 至少需要补这些字段：
+
+- `PB_ADMIN_EMAIL`
+- `PB_ADMIN_PASSWORD`
+- `APP_URL`
+  前端本地地址，例如 `http://127.0.0.1:5173`
+- `STRAVA_CLIENT_ID`
+- `STRAVA_CLIENT_SECRET`
+- `STRAVA_REDIRECT_URI`
+  本地开发建议填 `http://127.0.0.1:8090/api/integrations/strava/callback`
+- `STRAVA_STATE_SECRET`
+- `STRAVA_SCOPES`
+  默认建议 `read,activity:read_all`
+
+前端 `frontend/.env` 通常只需要保留：
+
+- `VITE_PB_URL=`
+  本地开发留空即可，默认走同源 / 代理访问
+
 ### 3. 启动 PocketBase
 
 方式一：Docker
@@ -67,15 +94,32 @@ pnpm run dev:pb
 pnpm run dev:web
 ```
 
-### 5. 可选：初始化演示数据
+### 5. 在 PocketBase 后台启用 GitHub 登录
 
-```bash
-pnpm run seed:pocketbase
-```
+登录 PocketBase Admin UI 后，确认：
 
-默认会创建一个演示账号：
-- Email: `demo@example.com`
-- Password: `demo123456`
+- `users` collection 已启用 OAuth2
+- GitHub provider 已配置好 client id / client secret
+
+如果 GitHub 登录没配好，前端登录页会提示 GitHub OAuth 未启用。
+
+### 6. 在 Strava 创建应用
+
+前往 [Strava API Settings](https://www.strava.com/settings/api) 创建应用，并把 `Authorization Callback Domain` 指向你的 PocketBase 域名或本地地址。
+
+本地开发至少要保证：
+
+- Strava 应用里的回调域能覆盖 `127.0.0.1:8090`
+- `.env` 里的 `STRAVA_REDIRECT_URI` 与 Strava 应用配置一致
+
+### 7. 手动验证主链路
+
+1. 使用 GitHub 登录。
+2. 点击“连接 Strava”。
+3. 授权成功后进入活动页。
+4. 点击“同步活动”。
+5. 打开某条活动详情，创建生成任务。
+6. 查看 mock 成品结果页并下载 SVG。
 
 ## 常用命令
 
@@ -89,6 +133,25 @@ pnpm run typegen:pocketbase
 pnpm run typecheck:pocketbase
 pnpm --dir frontend run typecheck
 ```
+
+## 核心目录
+
+```text
+frontend/src/views/
+frontend/src/stores/
+frontend/src/lib/
+pocketbase/pb_migrations/
+pocketbase/pb_hooks/
+docs/
+```
+
+当前最关键的几份文档：
+
+- [docs/00-overview.md](./docs/00-overview.md)
+- [docs/03-strava-integration.md](./docs/03-strava-integration.md)
+- [docs/05-data-model.md](./docs/05-data-model.md)
+- [docs/07-api-and-jobs.md](./docs/07-api-and-jobs.md)
+- [docs/10-implementation-plan.md](./docs/10-implementation-plan.md)
 
 ## 目录结构
 
@@ -104,26 +167,20 @@ vue-pocketbase-template/
 │       ├── types/
 │       └── views/
 ├── pocketbase/
+│   ├── pb_hooks/
 │   ├── pb_migrations/
 │   ├── scripts/
 │   └── seeds/
+├── docs/
 ├── docker-compose.yml
 └── README.md
 ```
 
-## 模板默认约定
-
-- `users` collection 负责认证
-- `todos` collection 只是一个示例业务模块
-- migration 只放 schema 和数据修复，不放 demo 数据
-- demo 数据统一走 `seed` 脚本
-- 前端类型来自 `pocketbase-typegen`
-
 ## 下一步建议
 
-新项目初始化时，推荐按这个顺序改：
+当前最适合继续推进的是：
 
-1. 先改 `README.md`、包名和页面文案
-2. 再改 PocketBase schema 和迁移
-3. 运行 `pnpm run typegen:pocketbase`
-4. 最后替换示例视图、store 和组件
+1. 用真实 Strava 应用做一次端到端联调
+2. 补 webhook / 增量同步和同步退避
+3. 把 mock 渲染器替换成真实 AI 生成服务
+4. 最后再补邮箱密码体系
