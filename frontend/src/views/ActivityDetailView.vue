@@ -2,14 +2,17 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
+import ActivityRouteMap from '@/components/ActivityRouteMap.vue'
 import { artPresetDefinitions, aspectRatioDefinitions, type AspectRatio, type StylePreset } from '@/lib/art-presets'
 import { useActivitiesStore } from '@/stores/activities'
+import { useActivityStreamsStore } from '@/stores/activity-streams'
 import { useArtJobsStore } from '@/stores/art-jobs'
 import { useArtResultsStore } from '@/stores/art-results'
 
 const route = useRoute()
 const router = useRouter()
 const activitiesStore = useActivitiesStore()
+const activityStreamsStore = useActivityStreamsStore()
 const artJobsStore = useArtJobsStore()
 const artResultsStore = useArtResultsStore()
 
@@ -19,6 +22,22 @@ const selectedPreset = ref<StylePreset>('sketch')
 const selectedAspectRatio = ref<AspectRatio>('portrait')
 const includeTitle = ref(true)
 const createFeedback = ref('')
+const routeSubtitle = computed(() => {
+  if (!activity.value) return ''
+
+  const parts = []
+  if (activity.value.distance_meters)
+    parts.push(formatDistance(activity.value.distance_meters))
+  if (activity.value.start_date)
+    parts.push(new Date(activity.value.start_date).toLocaleDateString('zh-CN'))
+
+  return parts.join(' · ')
+})
+const routePoints = computed(() => {
+  return activityStreamsStore.currentStream?.normalized_path_json
+    ?? activityStreamsStore.currentStream?.latlng_stream_json
+    ?? null
+})
 
 const getResultRendererLabel = (result: unknown) => {
   if (!result || typeof result !== 'object') return '成品'
@@ -75,6 +94,7 @@ const loadPage = async () => {
   if (activityId.value) {
     await Promise.all([
       activitiesStore.fetchActivityById(activityId.value),
+      activityStreamsStore.fetchStreamForActivity(activityId.value),
       artJobsStore.fetchJobsForActivity(activityId.value),
       artResultsStore.fetchResultsForActivity(activityId.value),
     ])
@@ -120,6 +140,7 @@ watch(activityId, () => {
 
 onUnmounted(() => {
   activitiesStore.clearCurrentActivity()
+  activityStreamsStore.clear()
   artJobsStore.clear()
   artResultsStore.clear()
 })
@@ -203,6 +224,13 @@ onUnmounted(() => {
             </div>
           </div>
         </article>
+
+        <ActivityRouteMap
+          :points="routePoints"
+          :title="activity?.name || 'Untitled Activity'"
+          :subtitle="routeSubtitle"
+          :filename="`${activity?.sport_type || 'activity'}-${activity?.id || 'route'}`"
+        />
 
         <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">

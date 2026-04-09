@@ -167,6 +167,18 @@ export const isActivity = (value: unknown): value is Activity => {
   )
 }
 
+export const isActivityStream = (value: unknown): value is ActivityStream => {
+  if (typeof value !== 'object' || value === null) return false
+
+  return (
+    'collectionName' in value &&
+    value.collectionName === 'activity_streams' &&
+    'id' in value &&
+    'activity' in value &&
+    'user' in value
+  )
+}
+
 export const isArtJob = (value: unknown): value is ArtJob => {
   if (typeof value !== 'object' || value === null) return false
 
