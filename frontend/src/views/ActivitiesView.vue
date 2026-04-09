@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowRight, CheckCircle2, Link2, RefreshCw, Route, Sparkles, TriangleAlert } from 'lucide-vue-next'
+import { ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert } from 'lucide-vue-next'
 import { useActivitiesStore } from '@/stores/activities'
 import { useStravaStore } from '@/stores/strava'
 
@@ -21,7 +21,7 @@ const stravaNotice = computed(() => {
       return {
         tone: 'success' as const,
         title: 'Strava 已完成授权',
-        description: '账户连接已保存。首次活动同步还未接入自动任务，所以你现在看到的可能仍是空列表。',
+        description: '账户连接已保存。页面会继续尝试把你的 Strava 活动同步到本地。',
       }
     case 'denied':
       return {
@@ -70,8 +70,16 @@ const refreshPage = async () => {
   ])
 }
 
+const syncActivities = async () => {
+  await stravaStore.runSync()
+  await activitiesStore.fetchActivities()
+}
+
 onMounted(async () => {
   await refreshPage()
+  if (stravaQueryStatus.value === 'connected') {
+    await syncActivities()
+  }
 })
 </script>
 
@@ -92,6 +100,10 @@ onMounted(async () => {
             <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="stravaStore.startConnection">
               <Link2 class="w-4 h-4 mr-2" />
               {{ stravaStore.connecting ? '正在跳转到 Strava...' : '连接 Strava' }}
+            </button>
+            <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
+              <Download class="w-4 h-4 mr-2" />
+              {{ stravaStore.syncing ? '正在同步活动...' : '同步活动' }}
             </button>
             <button class="btn btn-ghost" @click="refreshPage">
               <RefreshCw class="w-4 h-4 mr-2" />
@@ -145,6 +157,13 @@ onMounted(async () => {
           {{ activitiesStore.error }}
         </div>
 
+        <div v-if="stravaStore.syncSummary" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-700">
+          <p class="font-semibold">同步完成</p>
+          <p class="mt-1 leading-6">
+            本次抓取 {{ stravaStore.syncSummary.fetched }} 条活动，新增 {{ stravaStore.syncSummary.created }} 条，更新 {{ stravaStore.syncSummary.updated }} 条，可生成 {{ stravaStore.syncSummary.generatable }} 条。
+          </p>
+        </div>
+
         <section v-if="!hasActivities && !activitiesStore.loading" class="rounded-[32px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-card)]/70 p-8 sm:p-10 text-center">
           <div class="mx-auto w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center">
             <Route class="w-8 h-8" />
@@ -157,6 +176,10 @@ onMounted(async () => {
             <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="stravaStore.startConnection">
               <Link2 class="w-4 h-4 mr-2" />
               {{ stravaStore.connecting ? '正在跳转到 Strava...' : '开始连接 Strava' }}
+            </button>
+            <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
+              <Download class="w-4 h-4 mr-2" />
+              {{ stravaStore.syncing ? '正在同步活动...' : '同步首批活动' }}
             </button>
             <button class="btn btn-ghost" @click="refreshPage">
               <RefreshCw class="w-4 h-4 mr-2" />
@@ -221,7 +244,7 @@ onMounted(async () => {
             <div>
               <h2 class="text-base font-semibold text-[var(--color-text)]">阶段 2 说明</h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                当前活动页已经可以读取本地 collections，也预留了真实 Strava OAuth 入口和回流提示。下一步会继续补首次同步任务，让这里出现真实活动数据。
+                当前活动页已经可以读取本地 collections，也支持发起真实 Strava 首次同步。下一步会继续补 webhook 和更稳定的增量同步。
               </p>
             </div>
           </div>

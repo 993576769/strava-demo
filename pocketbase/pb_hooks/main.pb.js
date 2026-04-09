@@ -40,6 +40,15 @@ routerAdd("GET", "/api/integrations/strava/callback", function (e) {
   }
 })
 
+routerAdd("POST", "/api/integrations/strava/sync", function (e) {
+  var utils = require(__hooks + "/strava.js")
+  var result = utils.syncActivities(e.auth.id)
+  return e.json(200, {
+    connection: result.connection.publicExport(),
+    stats: result.stats,
+  })
+}, $apis.requireAuth("users"))
+
 routerAdd("POST", "/api/art/jobs", function (e) {
   var art = require(__hooks + "/art.js")
   var result = art.createJob(e)

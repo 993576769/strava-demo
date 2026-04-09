@@ -34,11 +34,22 @@ export const useStravaStore = defineStore('strava', () => {
   const connection = ref<StravaConnection | null>(null)
   const loading = ref(false)
   const connecting = ref(false)
+  const syncing = ref(false)
   const error = ref<string | null>(null)
+  const syncSummary = ref<{
+    fetched: number
+    created: number
+    updated: number
+    ready: number
+    partial: number
+    generatable: number
+    failed: number
+  } | null>(null)
 
   const status = computed<StravaUiStatus>(() => {
     if (!auth.isLoggedIn) return 'not_connected'
     if (connecting.value) return 'connecting'
+    if (syncing.value) return 'syncing'
     return mapRecordStatusToUi(connection.value?.status)
   })
 
@@ -46,6 +57,9 @@ export const useStravaStore = defineStore('strava', () => {
   const lastSyncAt = computed(() => connection.value?.last_sync_at ?? null)
   const canConnect = computed(() => {
     return status.value === 'not_connected' || status.value === 'error' || status.value === 'reauthorization_required'
+  })
+  const canSync = computed(() => {
+    return !!connection.value && connection.value.status === 'active' && !syncing.value && !connecting.value
   })
 
   const startConnection = async () => {
@@ -96,16 +110,60 @@ export const useStravaStore = defineStore('strava', () => {
     }
   }
 
-    return {
+  const runSync = async () => {
+    if (!auth.isLoggedIn) return null
+
+    syncing.value = true
+    error.value = null
+    syncSummary.value = null
+
+    try {
+      const result = await pb.send<{
+        connection?: unknown
+        stats?: {
+          fetched: number
+          created: number
+          updated: number
+          ready: number
+          partial: number
+          generatable: number
+          failed: number
+        }
+      }>('/api/integrations/strava/sync', {
+        method: 'POST',
+      })
+
+      if (result.connection && isStravaConnection(result.connection)) {
+        connection.value = result.connection
+      } else {
+        await fetchConnection()
+      }
+
+      syncSummary.value = result.stats ?? null
+      return result.stats ?? null
+    } catch (value) {
+      console.error(value)
+      error.value = value instanceof Error ? value.message : '同步 Strava 活动失败'
+      return null
+    } finally {
+      syncing.value = false
+    }
+  }
+
+  return {
     connection,
     loading,
     connecting,
+    syncing,
     error,
+    syncSummary,
     status,
     statusLabel,
     lastSyncAt,
     canConnect,
+    canSync,
     startConnection,
     fetchConnection,
+    runSync,
   }
 })
