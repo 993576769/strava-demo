@@ -126,8 +126,7 @@ export const isUser = (value: unknown): value is User => {
     'collectionName' in value &&
     value.collectionName === 'users' &&
     'id' in value &&
-    'email' in value &&
-    'username' in value
+    'email' in value
   )
 }
 

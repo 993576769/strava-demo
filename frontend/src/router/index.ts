@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import type { RouteLocationNormalizedGeneric, RouteLocationRaw } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -43,6 +44,15 @@ const router = createRouter({
   ]
 })
 
+const resolveGuestRedirect = (to: RouteLocationNormalizedGeneric): RouteLocationRaw => {
+  const redirect = to.query.redirect
+  if (typeof redirect === 'string' && redirect.startsWith('/')) {
+    return redirect
+  }
+
+  return { name: 'home' }
+}
+
 // 路由守卫
 router.beforeEach((to, _from, next) => {
   const auth = useAuthStore()
@@ -55,7 +65,7 @@ router.beforeEach((to, _from, next) => {
   
   // 已登录但访问登录页
   if (to.meta.guest && auth.isLoggedIn) {
-    next({ name: 'home' })
+    next(resolveGuestRedirect(to))
     return
   }
   

@@ -10,6 +10,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(scriptDir, '..', '..')
 const pocketbaseDir = path.resolve(repoRoot, 'pocketbase')
 const migrationsDir = path.resolve(pocketbaseDir, 'pb_migrations')
+const hooksDir = path.resolve(pocketbaseDir, 'pb_hooks')
 const dataDir = path.resolve(repoRoot, 'pb_data')
 
 const loadEnvFile = (filename) => {
@@ -75,6 +76,7 @@ const adminPassword = process.env.PB_ADMIN_PASSWORD
 const sharedFlags = [
   '--dir', dataDir,
   '--migrationsDir', migrationsDir,
+  '--hooksDir', hooksDir,
 ]
 
 const runPocketBaseCommand = (args) => new Promise((resolve, reject) => {

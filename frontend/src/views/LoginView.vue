@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryValue } from 'vue-router'
 import { Github, Loader2, Route, ShieldCheck } from 'lucide-vue-next'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -29,14 +29,21 @@ const getErrorMessage = (value: unknown, fallback: string) => {
   return fallback
 }
 
+const redirectIfAuthenticated = () => {
+  if (!auth.isLoggedIn) return
+  const redirect = getRedirectTarget(route.query.redirect)
+  router.replace(redirect || { name: 'home' })
+}
+
+watch(() => auth.isLoggedIn, redirectIfAuthenticated, { immediate: true })
+
 const handleGitHubLogin = async () => {
   error.value = ''
   loading.value = true
 
   try {
     await auth.loginWithGitHub()
-    const redirect = getRedirectTarget(route.query.redirect)
-    router.push(redirect || { name: 'home' })
+    redirectIfAuthenticated()
   } catch (value: unknown) {
     error.value = getErrorMessage(value, 'GitHub 登录失败，请确认 PocketBase 已启用 GitHub OAuth Provider。')
   } finally {

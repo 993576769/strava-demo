@@ -299,6 +299,7 @@ export type UserCreate = Pick<UsersRecord, 'email' | 'password'> & {
 }
 
 export type UserUpdate = {
+  name?: string
   theme?: UsersThemeOptions
 }
 

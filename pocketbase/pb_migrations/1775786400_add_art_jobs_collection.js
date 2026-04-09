@@ -110,8 +110,8 @@ migrate((app) => {
         },
       ],
       indexes: [
-        "CREATE INDEX idx_art_jobs_user_created ON art_jobs (user, created)",
-        "CREATE INDEX idx_art_jobs_activity_created ON art_jobs (activity, created)",
+        "CREATE INDEX idx_art_jobs_user_queued_at ON art_jobs (user, queued_at)",
+        "CREATE INDEX idx_art_jobs_activity_queued_at ON art_jobs (activity, queued_at)",
         "CREATE INDEX idx_art_jobs_status ON art_jobs (status)",
         "CREATE INDEX idx_art_jobs_idempotency ON art_jobs (user, activity, style_preset, render_options_hash, status)",
       ],

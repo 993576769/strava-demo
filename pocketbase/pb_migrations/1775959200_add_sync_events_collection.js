@@ -70,8 +70,8 @@ migrate((app) => {
         },
       ],
       indexes: [
-        "CREATE INDEX idx_sync_events_user_created ON sync_events (user, created)",
-        "CREATE INDEX idx_sync_events_provider_category_created ON sync_events (provider, category, created)",
+        "CREATE INDEX idx_sync_events_user ON sync_events (user)",
+        "CREATE INDEX idx_sync_events_provider_category ON sync_events (provider, category)",
       ],
     })
 

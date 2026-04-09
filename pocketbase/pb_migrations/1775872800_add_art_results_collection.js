@@ -111,8 +111,8 @@ migrate((app) => {
       ],
       indexes: [
         "CREATE UNIQUE INDEX idx_art_results_job ON art_results (job)",
-        "CREATE INDEX idx_art_results_user_created ON art_results (user, created)",
-        "CREATE INDEX idx_art_results_activity_created ON art_results (activity, created)",
+        "CREATE INDEX idx_art_results_user ON art_results (user)",
+        "CREATE INDEX idx_art_results_activity ON art_results (activity)",
       ],
     })
 
