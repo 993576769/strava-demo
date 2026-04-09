@@ -64,6 +64,8 @@ cp frontend/.env.example frontend/.env
 - `STRAVA_REDIRECT_URI`
   本地开发建议填 `http://127.0.0.1:8090/api/integrations/strava/callback`
 - `STRAVA_STATE_SECRET`
+- `STRAVA_WEBHOOK_VERIFY_TOKEN`
+  用于 Strava webhook 验证，建议与 state secret 分开设置
 - `STRAVA_SCOPES`
   默认建议 `read,activity:read_all`
 
@@ -112,7 +114,27 @@ pnpm run dev:web
 - Strava 应用里的回调域能覆盖 `127.0.0.1:8090`
 - `.env` 里的 `STRAVA_REDIRECT_URI` 与 Strava 应用配置一致
 
-### 7. 手动验证主链路
+### 7. 可选：创建 Strava webhook 订阅
+
+当前后端已经提供了：
+
+- `GET /api/integrations/strava/webhook`
+  用于 Strava 校验 webhook
+- `POST /api/integrations/strava/webhook`
+  用于接收 activity create / update / delete 和 athlete revoke 事件
+
+如果你要在本地调试 webhook，通常需要先用 ngrok 或其他隧道把 PocketBase 暴露出去。
+
+创建订阅时，Strava 官方文档示例是向 `https://www.strava.com/api/v3/push_subscriptions` 发请求，并带上：
+
+- `client_id`
+- `client_secret`
+- `callback_url`
+  例如 `https://your-public-host/api/integrations/strava/webhook`
+- `verify_token`
+  需要和 `.env` 里的 `STRAVA_WEBHOOK_VERIFY_TOKEN` 一致
+
+### 8. 手动验证主链路
 
 1. 使用 GitHub 登录。
 2. 点击“连接 Strava”。

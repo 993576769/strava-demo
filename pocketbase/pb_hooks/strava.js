@@ -28,6 +28,10 @@ module.exports = {
     return this.getRequiredEnv("STRAVA_STATE_SECRET")
   },
 
+  getWebhookVerifyToken: function () {
+    return this.getOptionalEnv("STRAVA_WEBHOOK_VERIFY_TOKEN", this.getStateSecret())
+  },
+
   getEncryptionKey: function () {
     var rawKey = $os.getenv("STRAVA_TOKEN_ENCRYPTION_KEY") || this.getStateSecret()
     return $security.sha256(rawKey).slice(0, 32)
@@ -205,6 +209,18 @@ module.exports = {
     }
   },
 
+  getConnectionByAthleteId: function (athleteId) {
+    try {
+      return $app.findFirstRecordByFilter(
+        "strava_connections",
+        "provider = 'strava' && strava_athlete_id = {:athleteId}",
+        { athleteId: String(athleteId) }
+      )
+    } catch (_) {
+      return null
+    }
+  },
+
   getStatusPayload: function (userId) {
     var connection = this.getConnectionForUser(userId)
     return {
@@ -326,6 +342,34 @@ module.exports = {
     } catch (_) {
       return null
     }
+  },
+
+  deleteActivityBySourceId: function (sourceActivityId, userId) {
+    var activity = null
+    try {
+      activity = $app.findFirstRecordByFilter(
+        "activities",
+        "source = 'strava' && source_activity_id = {:sourceActivityId} && user = {:userId}",
+        {
+          sourceActivityId: String(sourceActivityId),
+          userId: userId,
+        }
+      )
+    } catch (_) {
+      return false
+    }
+
+    if (!activity) {
+      return false
+    }
+
+    var stream = this.findActivityStreamRecord(activity.id, userId)
+    if (stream) {
+      $app.delete(stream)
+    }
+
+    $app.delete(activity)
+    return true
   },
 
   findActivityStreamRecord: function (activityId, userId) {
@@ -546,6 +590,95 @@ module.exports = {
     }
   },
 
+  syncSingleActivity: function (connection, activityId) {
+    if (!connection) {
+      throw new BadRequestError("Strava connection not found")
+    }
+
+    var userId = connection.getString("user")
+    var accessToken = this.getValidAccessToken(connection)
+    var detail = this.fetchActivityDetail(accessToken, activityId)
+    var streams = {}
+
+    try {
+      streams = this.fetchActivityStreams(accessToken, activityId)
+    } catch (_) {
+      streams = {}
+    }
+
+    var outcome = this.upsertActivity({
+      userId: userId,
+      connection: connection,
+      summary: detail,
+      detail: detail,
+      streams: streams,
+    })
+
+    connection.set("last_webhook_at", new Date().toISOString())
+    connection.set("last_error_code", "")
+    connection.set("last_error_message", "")
+    $app.save(connection)
+
+    return outcome
+  },
+
+  revokeConnection: function (connection, reason) {
+    if (!connection) {
+      return null
+    }
+
+    connection.set("status", "revoked")
+    connection.set("access_token_encrypted", "")
+    connection.set("refresh_token_encrypted", "")
+    connection.set("token_expires_at", null)
+    connection.set("last_webhook_at", new Date().toISOString())
+    connection.set("last_error_code", reason || "")
+    connection.set("last_error_message", reason ? "Strava webhook reported deauthorization" : "")
+    $app.save(connection)
+    return connection
+  },
+
+  processWebhookEvent: function (payload) {
+    var objectType = String(payload && payload.object_type || "")
+    var aspectType = String(payload && payload.aspect_type || "")
+    var objectId = payload && payload.object_id
+    var ownerId = payload && payload.owner_id
+    var updates = payload && typeof payload.updates === "object" && payload.updates ? payload.updates : {}
+
+    if (!objectType || !aspectType || !ownerId) {
+      return { ignored: true, reason: "missing_required_fields" }
+    }
+
+    var connection = this.getConnectionByAthleteId(ownerId)
+    if (!connection) {
+      return { ignored: true, reason: "connection_not_found" }
+    }
+
+    connection.set("last_webhook_at", new Date().toISOString())
+    $app.save(connection)
+
+    if (objectType === "athlete" && updates && updates.authorized === "false") {
+      this.revokeConnection(connection, "webhook_deauthorized")
+      return { handled: true, action: "revoked" }
+    }
+
+    if (objectType !== "activity" || !objectId) {
+      return { ignored: true, reason: "unsupported_object_type" }
+    }
+
+    if (aspectType === "delete") {
+      this.deleteActivityBySourceId(objectId, connection.getString("user"))
+      return { handled: true, action: "deleted" }
+    }
+
+    if (aspectType === "create" || aspectType === "update") {
+      this.syncSingleActivity(connection, objectId)
+      return { handled: true, action: aspectType === "create" ? "synced_created_activity" : "synced_updated_activity" }
+    }
+
+    return { ignored: true, reason: "unsupported_aspect_type" }
+  },
+
   disconnect: function (userId) {
     var connection = this.getConnectionForUser(userId)
     if (!connection) {
@@ -555,13 +688,7 @@ module.exports = {
       }
     }
 
-    connection.set("status", "revoked")
-    connection.set("access_token_encrypted", "")
-    connection.set("refresh_token_encrypted", "")
-    connection.set("token_expires_at", null)
-    connection.set("last_error_code", "")
-    connection.set("last_error_message", "")
-    $app.save(connection)
+    this.revokeConnection(connection, "")
 
     return {
       disconnected: true,

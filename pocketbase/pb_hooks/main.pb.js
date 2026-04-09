@@ -40,6 +40,37 @@ routerAdd("GET", "/api/integrations/strava/callback", function (e) {
   }
 })
 
+routerAdd("GET", "/api/integrations/strava/webhook", function (e) {
+  var utils = require(__hooks + "/strava.js")
+  var query = e.request.url.query()
+  var challenge = query.get("hub.challenge")
+  var verifyToken = query.get("hub.verify_token")
+  var mode = query.get("hub.mode")
+
+  if (mode !== "subscribe" || verifyToken !== utils.getWebhookVerifyToken() || !challenge) {
+    throw new BadRequestError("Invalid Strava webhook verification request")
+  }
+
+  return e.json(200, {
+    "hub.challenge": challenge,
+  })
+})
+
+routerAdd("POST", "/api/integrations/strava/webhook", function (e) {
+  var utils = require(__hooks + "/strava.js")
+  var body = e.requestInfo().body || {}
+
+  try {
+    utils.processWebhookEvent(body)
+  } catch (err) {
+    console.log(err)
+  }
+
+  return e.json(200, {
+    received: true,
+  })
+})
+
 routerAdd("GET", "/api/integrations/strava/status", function (e) {
   var utils = require(__hooks + "/strava.js")
   return e.json(200, utils.getStatusPayload(e.auth.id))
