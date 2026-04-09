@@ -14,7 +14,6 @@ export enum Collections {
   ArtResults = 'art_results',
   StravaConnections = 'strava_connections',
   SyncEvents = 'sync_events',
-  Todos = 'todos',
   Users = 'users',
 }
 
@@ -223,29 +222,10 @@ export type SyncEventsRecord = {
   created?: IsoDateString
   id: string
   message?: string
+  occurred_at?: IsoDateString
   payload_json?: unknown
   provider: string
   status: SyncEventsStatusOptions
-  title: string
-  updated?: IsoDateString
-  user: RecordIdString
-}
-
-export enum TodosPriorityOptions {
-  Low = 'low',
-  Medium = 'medium',
-  High = 'high',
-}
-
-export type TodosRecord<Ttags = unknown> = {
-  completed?: boolean
-  created?: IsoDateString
-  description?: string
-  due_date?: IsoDateString
-  id: string
-  priority?: TodosPriorityOptions
-  sort_order?: number
-  tags?: null | Ttags
   title: string
   updated?: IsoDateString
   user: RecordIdString
@@ -258,7 +238,6 @@ export type ActivityStreamsResponse<Texpand = unknown> = Required<ActivityStream
 export type ArtJobsResponse<Texpand = unknown> = Required<ArtJobsRecord> & BaseSystemFields<Texpand>
 export type ArtResultsResponse<Texpand = unknown> = Required<ArtResultsRecord> & BaseSystemFields<Texpand>
 export type SyncEventsResponse<Texpand = unknown> = Required<SyncEventsRecord> & BaseSystemFields<Texpand>
-export type TodosResponse<Ttags = unknown, Texpand = unknown> = Required<TodosRecord<Ttags>> & BaseSystemFields<Texpand>
 
 export type CollectionRecords = {
   activities: ActivitiesRecord
@@ -267,7 +246,6 @@ export type CollectionRecords = {
   art_results: ArtResultsRecord
   strava_connections: StravaConnectionsRecord
   sync_events: SyncEventsRecord
-  todos: TodosRecord
   users: UsersRecord
 }
 
@@ -278,20 +256,8 @@ export type CollectionResponses = {
   art_results: ArtResultsResponse
   strava_connections: StravaConnectionsResponse
   sync_events: SyncEventsResponse
-  todos: TodosResponse
   users: UsersResponse
 }
-
-export type TodoCreate = Pick<TodosRecord<string[]>, 'title' | 'user'> & {
-  description?: string
-  completed?: boolean
-  due_date?: string | null
-  priority?: TodosPriorityOptions
-  sort_order?: number
-  tags?: string[]
-}
-
-export type TodoUpdate = Partial<Omit<TodoCreate, 'user'>>
 
 export type UserCreate = Pick<UsersRecord, 'email' | 'password'> & {
   passwordConfirm: string
@@ -310,6 +276,5 @@ export type TypedPocketBase = PocketBase & {
   collection(idOrName: 'art_results'): RecordService<ArtResultsResponse>
   collection(idOrName: 'strava_connections'): RecordService<StravaConnectionsResponse>
   collection(idOrName: 'sync_events'): RecordService<SyncEventsResponse>
-  collection(idOrName: 'todos'): RecordService<TodosResponse>
   collection(idOrName: 'users'): RecordService<UsersResponse>
 }

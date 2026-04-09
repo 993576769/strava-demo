@@ -14,7 +14,7 @@ export const useSyncEventsStore = defineStore('syncEvents', () => {
 
     try {
       const result = await syncEventsCollection().getList(1, 8, {
-        sort: '-created',
+        sort: '-occurred_at',
       })
       events.value = result.items.filter(isSyncEvent)
     } catch (value) {

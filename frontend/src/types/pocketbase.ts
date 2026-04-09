@@ -5,20 +5,15 @@ import type {
   ArtResultsResponse,
   StravaConnectionsResponse,
   SyncEventsResponse,
-  TodoCreate,
-  TodoUpdate,
-  TodosResponse,
   TypedPocketBase,
   UserCreate,
   UserUpdate,
   UsersResponse,
 } from './pocketbase.generated'
 import {
-  TodosPriorityOptions,
   UsersThemeOptions,
 } from './pocketbase.generated'
 
-export type Priority = `${TodosPriorityOptions}`
 export type Theme = `${UsersThemeOptions}`
 export type StravaConnectionStatus = 'active' | 'expired' | 'revoked' | 'reauthorization_required'
 export type ActivityVisibility = 'public' | 'followers_only' | 'only_me' | 'unknown'
@@ -27,12 +22,6 @@ export type ArtJobStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | '
 export type ArtResultVisibility = 'private' | 'unlisted' | 'public'
 export type SyncEventCategory = 'sync' | 'webhook' | 'connection'
 export type SyncEventStatus = 'info' | 'success' | 'warning' | 'error'
-export type TodoCreateInput = Omit<TodoCreate, 'priority'> & {
-  priority?: Priority
-}
-export type TodoUpdateInput = Omit<TodoUpdate, 'priority'> & {
-  priority?: Priority
-}
 export type UserUpdateInput = Omit<UserUpdate, 'theme'> & {
   theme?: Theme
 }
@@ -44,16 +33,13 @@ export type ActivityStream = ActivityStreamsResponse<{ activity?: ActivitiesResp
 export type ArtJob = ArtJobsResponse<{ activity?: ActivitiesResponse; stream?: ActivityStreamsResponse; user?: UsersResponse }>
 export type ArtResult = ArtResultsResponse<{ activity?: ActivitiesResponse; job?: ArtJobsResponse; user?: UsersResponse }>
 export type SyncEvent = SyncEventsResponse<{ user?: UsersResponse }>
-export type Todo = TodosResponse<string[], { user?: UsersResponse }>
 
 export type { TypedPocketBase }
-export type { TodoCreate, TodoUpdate, UserCreate, UserUpdate }
+export type { UserCreate, UserUpdate }
 
 // 前端使用的筛选状态
 export type FilterStatus = 'all' | 'active' | 'completed'
-export type FilterPriority = 'all' | Priority
 
-export const priorityValues = ['low', 'medium', 'high'] as const satisfies readonly Priority[]
 export const themeValues = ['light', 'dark', 'system'] as const satisfies readonly Theme[]
 export const stravaConnectionStatusValues = [
   'active',
@@ -88,9 +74,6 @@ export const artResultVisibilityValues = [
 export const syncEventCategoryValues = ['sync', 'webhook', 'connection'] as const satisfies readonly SyncEventCategory[]
 export const syncEventStatusValues = ['info', 'success', 'warning', 'error'] as const satisfies readonly SyncEventStatus[]
 export const filterStatusValues = ['all', 'active', 'completed'] as const satisfies readonly FilterStatus[]
-
-export const isPriority = (value: unknown): value is Priority =>
-  typeof value === 'string' && priorityValues.includes(value as Priority)
 
 export const isTheme = (value: unknown): value is Theme =>
   typeof value === 'string' && themeValues.includes(value as Theme)
@@ -127,18 +110,6 @@ export const isUser = (value: unknown): value is User => {
     value.collectionName === 'users' &&
     'id' in value &&
     'email' in value
-  )
-}
-
-export const isTodo = (value: unknown): value is Todo => {
-  if (typeof value !== 'object' || value === null) return false
-
-  return (
-    'collectionName' in value &&
-    value.collectionName === 'todos' &&
-    'id' in value &&
-    'title' in value &&
-    'user' in value
   )
 }
 
@@ -215,21 +186,6 @@ export const isSyncEvent = (value: unknown): value is SyncEvent => {
     'status' in value &&
     'title' in value
   )
-}
-
-export function toTodoPriorityOption(priority: Priority): TodosPriorityOptions
-export function toTodoPriorityOption(priority?: Priority): TodosPriorityOptions | undefined
-export function toTodoPriorityOption(priority?: Priority): TodosPriorityOptions | undefined {
-  switch (priority) {
-    case 'low':
-      return TodosPriorityOptions.Low
-    case 'medium':
-      return TodosPriorityOptions.Medium
-    case 'high':
-      return TodosPriorityOptions.High
-    default:
-      return undefined
-  }
 }
 
 export function toUserThemeOption(theme: Theme): UsersThemeOptions

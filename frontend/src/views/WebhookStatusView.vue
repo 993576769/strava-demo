@@ -36,6 +36,8 @@ const verifyChecklistText = computed(() =>
   ].join('\n'),
 )
 
+const eventTimestamp = (value: { occurred_at?: string; created?: string }) => value.occurred_at || value.created || ''
+
 const formatDateTime = (value: string) => {
   return new Date(value).toLocaleString('zh-CN', {
     year: 'numeric',
@@ -249,7 +251,7 @@ onUnmounted(() => {
                   </span>
                 </div>
                 <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{{ event.message || '暂无附加说明' }}</p>
-                <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ formatDateTime(event.created) }}</p>
+                <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ formatDateTime(eventTimestamp(event)) }}</p>
               </div>
             </div>
           </section>
@@ -262,7 +264,7 @@ onUnmounted(() => {
             </div>
             <div v-else class="mt-4 grid gap-3">
               <div
-                v-for="event in [...connectionEvents, ...syncEvents].sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()).slice(0, 6)"
+                v-for="event in [...connectionEvents, ...syncEvents].sort((a, b) => new Date(eventTimestamp(b)).getTime() - new Date(eventTimestamp(a)).getTime()).slice(0, 6)"
                 :key="event.id"
                 class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
               >
@@ -276,7 +278,7 @@ onUnmounted(() => {
                   </span>
                 </div>
                 <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{{ event.message || '暂无附加说明' }}</p>
-                <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ formatDateTime(event.created) }}</p>
+                <p class="mt-2 text-sm text-[var(--color-text-muted)]">{{ formatDateTime(eventTimestamp(event)) }}</p>
               </div>
             </div>
           </section>

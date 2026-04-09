@@ -1,4 +1,22 @@
 module.exports = {
+  getPositiveIntEnv: function (key, fallback, maxValue) {
+    var raw = $os.getenv(key)
+    if (!raw) {
+      return fallback
+    }
+
+    var value = parseInt(String(raw), 10)
+    if (!Number.isFinite(value) || value < 1) {
+      return fallback
+    }
+
+    if (typeof maxValue === "number" && value > maxValue) {
+      return maxValue
+    }
+
+    return value
+  },
+
   getRequiredEnv: function (key) {
     var value = $os.getenv(key)
     if (!value) {
@@ -10,6 +28,53 @@ module.exports = {
   getOptionalEnv: function (key, fallback) {
     var value = $os.getenv(key)
     return value || fallback
+  },
+
+  summarizeHttpError: function (response) {
+    if (!response) {
+      return "Unknown Strava API error"
+    }
+
+    var details = []
+    if (response.json && typeof response.json === "object") {
+      if (typeof response.json.message === "string" && response.json.message) {
+        details.push(response.json.message)
+      } else if (typeof response.json.errors === "string" && response.json.errors) {
+        details.push(response.json.errors)
+      } else if (Array.isArray(response.json.errors) && response.json.errors.length > 0) {
+        details.push(JSON.stringify(response.json.errors))
+      }
+    }
+
+    if (!details.length && typeof response.body === "string" && response.body) {
+      details.push(response.body.slice(0, 200))
+    }
+
+    if (!details.length) {
+      details.push("No response body")
+    }
+
+    return "HTTP " + response.statusCode + " - " + details.join(" | ")
+  },
+
+  throwStravaHttpError: function (label, response) {
+    throw new BadRequestError(label + ": " + this.summarizeHttpError(response))
+  },
+
+  getStravaRequestTimeout: function () {
+    return this.getPositiveIntEnv("STRAVA_HTTP_TIMEOUT_SECONDS", 15, 120)
+  },
+
+  getSyncPerPage: function () {
+    return this.getPositiveIntEnv("STRAVA_SYNC_PER_PAGE", 10, 50)
+  },
+
+  getSyncMaxPages: function () {
+    return this.getPositiveIntEnv("STRAVA_SYNC_MAX_PAGES", 1, 10)
+  },
+
+  getSyncMaxActivities: function () {
+    return this.getPositiveIntEnv("STRAVA_SYNC_MAX_ACTIVITIES", 10, 100)
   },
 
   getRedirectBase: function () {
@@ -47,6 +112,7 @@ module.exports = {
       record.set("title", title)
       record.set("message", message || "")
       record.set("payload_json", payload || null)
+      record.set("occurred_at", new Date().toISOString())
       $app.save(record)
       return record
     } catch (_) {
@@ -97,11 +163,11 @@ module.exports = {
         "code=" + encodeURIComponent(code),
         "grant_type=authorization_code",
       ].join("&"),
-      timeout: 30,
+      timeout: this.getStravaRequestTimeout(),
     })
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new BadRequestError("Strava token exchange failed")
+      this.throwStravaHttpError("Strava token exchange failed", response)
     }
 
     return response.json
@@ -120,11 +186,11 @@ module.exports = {
         "grant_type=refresh_token",
         "refresh_token=" + encodeURIComponent(refreshToken),
       ].join("&"),
-      timeout: 30,
+      timeout: this.getStravaRequestTimeout(),
     })
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new BadRequestError("Strava token refresh failed")
+      this.throwStravaHttpError("Strava token refresh failed", response)
     }
 
     return response.json
@@ -137,11 +203,11 @@ module.exports = {
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      timeout: 30,
+      timeout: this.getStravaRequestTimeout(),
     })
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new BadRequestError("Failed to fetch Strava athlete")
+      this.throwStravaHttpError("Failed to fetch Strava athlete", response)
     }
 
     return response.json
@@ -154,11 +220,11 @@ module.exports = {
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      timeout: 30,
+      timeout: this.getStravaRequestTimeout(),
     })
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new BadRequestError("Failed to fetch activity detail")
+      this.throwStravaHttpError("Failed to fetch activity detail", response)
     }
 
     return response.json
@@ -187,11 +253,11 @@ module.exports = {
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      timeout: 30,
+      timeout: this.getStravaRequestTimeout(),
     })
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new BadRequestError("Failed to fetch athlete activities")
+      this.throwStravaHttpError("Failed to fetch athlete activities", response)
     }
 
     return Array.isArray(response.json) ? response.json : []
@@ -209,7 +275,7 @@ module.exports = {
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      timeout: 30,
+      timeout: this.getStravaRequestTimeout(),
     })
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -294,8 +360,24 @@ module.exports = {
   },
 
   inferVisibility: function (detail) {
-    if (detail && typeof detail.visibility === "string" && detail.visibility) {
-      return detail.visibility
+    var rawVisibility = detail && typeof detail.visibility === "string"
+      ? String(detail.visibility).toLowerCase()
+      : ""
+
+    if (rawVisibility === "everyone" || rawVisibility === "public") {
+      return "public"
+    }
+
+    if (rawVisibility === "followers_only") {
+      return "followers_only"
+    }
+
+    if (rawVisibility === "only_me" || rawVisibility === "private") {
+      return "only_me"
+    }
+
+    if (rawVisibility === "unknown") {
+      return "unknown"
     }
 
     if (detail && detail.private === true) {
@@ -520,24 +602,50 @@ module.exports = {
     }
 
     var page = 1
-    var perPage = 50
-    var maxPages = 3
+    var perPage = this.getSyncPerPage()
+    var maxPages = this.getSyncMaxPages()
+    var maxActivities = this.getSyncMaxActivities()
     var allSummaries = []
 
-    while (page <= maxPages) {
-      var items = this.fetchAthleteActivities(accessToken, {
-        afterEpoch: afterEpoch,
-        page: page,
-        perPage: perPage,
+    this.logEvent(userId, "sync", "info", "Strava 同步开始", "正在拉取最近活动并更新本地数据。", {
+      afterEpoch: afterEpoch || null,
+      perPage: perPage,
+      maxPages: maxPages,
+      maxActivities: maxActivities,
+    })
+
+    try {
+      while (page <= maxPages && allSummaries.length < maxActivities) {
+        var items = this.fetchAthleteActivities(accessToken, {
+          afterEpoch: afterEpoch,
+          page: page,
+          perPage: perPage,
+        })
+        if (!items.length) {
+          break
+        }
+
+        var remaining = maxActivities - allSummaries.length
+        if (items.length > remaining) {
+          items = items.slice(0, remaining)
+        }
+
+        allSummaries = allSummaries.concat(items)
+
+        if (items.length < perPage || allSummaries.length >= maxActivities) {
+          break
+        }
+
+        page += 1
+      }
+    } catch (error) {
+      connection.set("last_error_code", "sync_fetch_failed")
+      connection.set("last_error_message", error && error.message ? error.message : "Failed to fetch Strava activities")
+      $app.save(connection)
+      this.logEvent(userId, "sync", "error", "Strava 同步失败", "读取 Strava 活动列表失败。", {
+        error: error && error.message ? error.message : "sync_fetch_failed",
       })
-      if (!items.length) {
-        break
-      }
-      allSummaries = allSummaries.concat(items)
-      if (items.length < perPage) {
-        break
-      }
-      page += 1
+      throw error
     }
 
     var stats = {
@@ -599,6 +707,8 @@ module.exports = {
       var startDate = (detail && detail.start_date) || summary.start_date || ""
       if (startDate && (!latestStartDate || new Date(startDate).getTime() > new Date(latestStartDate).getTime())) {
         latestStartDate = startDate
+        connection.set("last_sync_cursor", latestStartDate)
+        $app.save(connection)
       }
     }
 
@@ -614,8 +724,18 @@ module.exports = {
       "sync",
       stats.failed > 0 ? "warning" : "success",
       stats.failed > 0 ? "Strava 同步完成（部分失败）" : "Strava 同步完成",
-      "本次同步抓取 " + stats.fetched + " 条活动，新增 " + stats.created + " 条，更新 " + stats.updated + " 条。",
-      stats
+      "本次同步抓取 " + stats.fetched + " 条活动，新增 " + stats.created + " 条，更新 " + stats.updated + " 条，失败 " + stats.failed + " 条。" + (stats.fetched >= maxActivities ? " 已达到本次同步上限，下一次会继续从上次游标之后拉取。" : ""),
+      {
+        fetched: stats.fetched,
+        created: stats.created,
+        updated: stats.updated,
+        ready: stats.ready,
+        partial: stats.partial,
+        generatable: stats.generatable,
+        failed: stats.failed,
+        maxActivities: maxActivities,
+        limited: stats.fetched >= maxActivities,
+      }
     )
 
     return {

@@ -2,13 +2,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import PocketBase from 'pocketbase'
-import { demoTodosSeed } from '../seeds/demo-todos.mts'
 import { demoUserSeed } from '../seeds/demo-user.mts'
 
 type SeedRecord = {
   id: string
   email?: string
-  title?: string
 }
 
 const currentFile = fileURLToPath(import.meta.url)
@@ -28,7 +26,7 @@ Environment variables:
   PB_SEED_TOKEN           Preferred superuser impersonation token
 
 Notes:
-  - Seed data comes from pocketbase/seeds/demo-user.mts and demo-todos.mts
+  - Seed data comes from pocketbase/seeds/demo-user.mts
   - This script reads .env first and .env.local as a compatibility fallback
   - Credentials fall back in this order: PB_SEED_* -> PB_TYPEGEN_* -> PB_ADMIN_*
 `)
@@ -164,38 +162,10 @@ const ensureDemoUser = async (): Promise<SeedRecord> => {
   })
 }
 
-const ensureDemoTodos = async (userId: string) => {
-  let existingTodos: SeedRecord[]
-  try {
-    existingTodos = await pb.collection('todos').getFullList<SeedRecord>({
-      filter: `user="${userId}"`,
-    })
-  } catch (error) {
-    if (hasStatus(error, 404)) {
-      throw new Error('Missing users or todos collection. Run PocketBase migrations first.')
-    }
-    throw error
-  }
-
-  const existingTitles = new Set(existingTodos.map((todo) => todo.title).filter(Boolean))
-
-  for (const todo of demoTodosSeed) {
-    if (existingTitles.has(todo.title)) {
-      continue
-    }
-
-    await pb.collection('todos').create({
-      ...todo,
-      user: userId,
-    })
-  }
-}
-
 const main = async () => {
   console.log(`Seeding PocketBase at ${pbUrl}`)
   await authenticateSuperuser()
   const demoUser = await ensureDemoUser()
-  await ensureDemoTodos(demoUser.id)
   console.log(`PocketBase seed completed for ${demoUser.email}`)
 }
 

@@ -20,14 +20,8 @@ migrate((app) => {
     )
   }
 
-  app.save(users)
-
-  const todos = app.findCollectionByNameOrId("todos")
-  return app.save(todos)
+  return app.save(users)
 }, (app) => {
-  const todos = app.findCollectionByNameOrId("todos")
-  app.save(todos)
-
   const users = app.findCollectionByNameOrId("users")
   if (hasField(users, "theme")) {
     users.fields.removeByName("theme")
