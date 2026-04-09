@@ -1,6 +1,6 @@
 import PocketBase, { type RecordService } from 'pocketbase'
 import { Collections } from '@/types/pocketbase.generated'
-import type { Activity, ActivityStream, StravaConnection, Todo, TypedPocketBase, User } from '@/types/pocketbase'
+import type { Activity, ActivityStream, ArtJob, StravaConnection, Todo, TypedPocketBase, User } from '@/types/pocketbase'
 
 const getPBUrl = () => {
   if (import.meta.env.VITE_PB_URL) return import.meta.env.VITE_PB_URL
@@ -15,6 +15,7 @@ export const pb = new PocketBase(getPBUrl()) as TypedPocketBase
 export const stravaConnectionsCollection = () => pb.collection(Collections.StravaConnections) as RecordService<StravaConnection>
 export const activitiesCollection = () => pb.collection(Collections.Activities) as RecordService<Activity>
 export const activityStreamsCollection = () => pb.collection(Collections.ActivityStreams) as RecordService<ActivityStream>
+export const artJobsCollection = () => pb.collection(Collections.ArtJobs) as RecordService<ArtJob>
 export const usersCollection = () => pb.collection(Collections.Users) as RecordService<User>
 export const todosCollection = () => pb.collection(Collections.Todos) as RecordService<Todo>
 

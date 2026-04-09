@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, MapPinned, Sparkles } from 'lucide-vue-next'
+import { ArrowLeft, CheckCircle2, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
+import { artPresetDefinitions, aspectRatioDefinitions, type AspectRatio, type StylePreset } from '@/lib/art-presets'
 import { useActivitiesStore } from '@/stores/activities'
+import { useArtJobsStore } from '@/stores/art-jobs'
 
 const route = useRoute()
 const router = useRouter()
 const activitiesStore = useActivitiesStore()
+const artJobsStore = useArtJobsStore()
 
 const activityId = computed(() => String(route.params.id ?? ''))
 const activity = computed(() => activitiesStore.currentActivity)
+const selectedPreset = ref<StylePreset>('sketch')
+const selectedAspectRatio = ref<AspectRatio>('portrait')
+const includeTitle = ref(true)
+const createFeedback = ref('')
 
 const formatDateTime = (value: string) => {
   return new Date(value).toLocaleString('zh-CN', {
@@ -23,14 +30,67 @@ const formatDateTime = (value: string) => {
 
 const formatDistance = (meters: number) => `${(meters / 1000).toFixed(1)} km`
 
-onMounted(async () => {
-  if (activityId.value) {
-    await activitiesStore.fetchActivityById(activityId.value)
+const getAspectRatioLabel = (value: unknown) => {
+  if (!value || typeof value !== 'object') return 'portrait'
+
+  const ratio = 'aspectRatio' in value ? value.aspectRatio : undefined
+  return typeof ratio === 'string' && ratio.length > 0 ? ratio : 'portrait'
+}
+
+const jobStatusLabel = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return '排队中'
+    case 'processing':
+      return '生成中'
+    case 'succeeded':
+      return '已完成'
+    case 'failed':
+      return '失败'
+    case 'canceled':
+      return '已取消'
+    default:
+      return status
   }
-})
+}
+
+const loadPage = async () => {
+  if (activityId.value) {
+    await Promise.all([
+      activitiesStore.fetchActivityById(activityId.value),
+      artJobsStore.fetchJobsForActivity(activityId.value),
+    ])
+  }
+}
+
+const createArtJob = async () => {
+  if (!activity.value) return
+
+  createFeedback.value = ''
+
+  const job = await artJobsStore.createJob({
+    activityId: activity.value.id,
+    stylePreset: selectedPreset.value,
+    aspectRatio: selectedAspectRatio.value,
+    includeTitle: includeTitle.value,
+  })
+
+  if (!job) {
+    return
+  }
+
+  createFeedback.value = artJobsStore.lastCreateResult === 'reused'
+    ? '已复用一个进行中的同参数任务。'
+    : '生成任务已创建，当前处于排队中。'
+}
+
+watch(activityId, () => {
+  void loadPage()
+}, { immediate: true })
 
 onUnmounted(() => {
   activitiesStore.clearCurrentActivity()
+  artJobsStore.clear()
 })
 </script>
 
@@ -104,7 +164,7 @@ onUnmounted(() => {
                 <p class="mt-2 text-sm text-[var(--color-text-muted)] leading-7">
                   {{
                     activity.is_generatable
-                      ? '当前活动已通过基础可生成校验。下一阶段会把这里接到真实的生成任务创建入口。'
+                      ? '当前活动已通过基础可生成校验。现在已经可以创建 `art_jobs` 任务，下一阶段再接真实 AI worker。'
                       : (activity.generatable_reason || '当前活动暂时不可生成，后续会补充更明确的判定说明。')
                   }}
                 </p>
@@ -115,12 +175,137 @@ onUnmounted(() => {
 
         <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">
-            <Sparkles class="w-5 h-5 mt-1 text-primary shrink-0" />
-            <div>
-              <h2 class="text-base font-semibold text-[var(--color-text)]">下一步</h2>
+            <Palette class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-semibold text-[var(--color-text)]">生成设置</h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                阶段 3 会在这个页面加入风格模板、画布比例和生成按钮，把当前活动落成 `art_jobs` 任务。
+                这一阶段先把风格模板、画布比例和任务创建打通。真正的 AI worker 会在下一阶段接上。
               </p>
+
+              <div class="mt-5 grid gap-3 md:grid-cols-3">
+                <button
+                  v-for="preset in artPresetDefinitions"
+                  :key="preset.id"
+                  type="button"
+                  class="rounded-2xl border p-4 text-left transition"
+                  :class="selectedPreset === preset.id
+                    ? 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55'"
+                  @click="selectedPreset = preset.id"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="text-sm font-semibold text-[var(--color-text)]">{{ preset.label }}</span>
+                    <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="preset.accentClass">
+                      {{ preset.id }}
+                    </span>
+                  </div>
+                  <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">{{ preset.description }}</p>
+                </button>
+              </div>
+
+              <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                <button
+                  v-for="ratio in aspectRatioDefinitions"
+                  :key="ratio.id"
+                  type="button"
+                  class="rounded-2xl border p-4 text-left transition"
+                  :class="selectedAspectRatio === ratio.id
+                    ? 'border-primary bg-primary/8'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55'"
+                  @click="selectedAspectRatio = ratio.id"
+                >
+                  <p class="text-sm font-semibold text-[var(--color-text)]">{{ ratio.label }}</p>
+                  <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{{ ratio.description }}</p>
+                </button>
+              </div>
+
+              <label class="mt-5 inline-flex items-center gap-3 text-sm text-[var(--color-text)]">
+                <input v-model="includeTitle" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]" />
+                在首版输出中保留活动标题
+              </label>
+
+              <div v-if="createFeedback" class="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
+                {{ createFeedback }}
+              </div>
+
+              <div v-if="artJobsStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+                {{ artJobsStore.error }}
+              </div>
+
+              <div class="mt-5 flex flex-wrap items-center gap-3">
+                <button
+                  class="btn btn-primary"
+                  :disabled="!activity.is_generatable || artJobsStore.creating"
+                  @click="createArtJob"
+                >
+                  <Loader2 v-if="artJobsStore.creating" class="w-4 h-4 mr-2 animate-spin" />
+                  <WandSparkles v-else class="w-4 h-4 mr-2" />
+                  {{ artJobsStore.creating ? '正在创建任务...' : '创建生成任务' }}
+                </button>
+                <p class="text-sm text-[var(--color-text-muted)]">
+                  {{ activity.is_generatable ? '任务会先进入 pending，后续再接真实 worker。' : '当前活动不可生成，按钮已禁用。' }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+          <div class="flex items-start gap-3">
+            <Sparkles class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-semibold text-[var(--color-text)]">生成任务</h2>
+              <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
+                当前活动下的任务会先记录在 `art_jobs`，后续生成完成后再关联到结果页。
+              </p>
+
+              <div v-if="artJobsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                正在读取历史任务...
+              </div>
+
+              <div v-else-if="artJobsStore.jobs.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
+                还没有生成任务。你可以先选一个模板，然后把这条活动落成第一条 `art_jobs` 记录。
+              </div>
+
+              <div v-else class="mt-5 grid gap-3">
+                <div
+                  v-for="job in artJobsStore.jobs"
+                  :key="job.id"
+                  class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
+                >
+                  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-semibold text-[var(--color-text)]">{{ job.style_preset }}</span>
+                        <span
+                          class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                          :class="job.status === 'succeeded'
+                            ? 'bg-emerald-500/12 text-emerald-600'
+                            : job.status === 'failed'
+                              ? 'bg-red-500/12 text-red-500'
+                              : 'bg-primary/10 text-primary'"
+                        >
+                          {{ jobStatusLabel(job.status) }}
+                        </span>
+                        <span v-if="artJobsStore.activeJob?.id === job.id" class="inline-flex items-center rounded-full bg-amber-500/12 px-2.5 py-1 text-xs font-medium text-amber-600">
+                          当前活动中的任务
+                        </span>
+                      </div>
+                      <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+                        创建时间：{{ formatDateTime(job.created) }}
+                      </p>
+                      <p v-if="job.error_message" class="mt-2 text-sm text-red-500">
+                        {{ job.error_message }}
+                      </p>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                      <CheckCircle2 class="w-4 h-4" />
+                      {{ getAspectRatioLabel(job.render_options_json) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </article>

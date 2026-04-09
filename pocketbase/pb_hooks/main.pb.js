@@ -39,3 +39,9 @@ routerAdd("GET", "/api/integrations/strava/callback", function (e) {
     return e.redirect(302, utils.buildFrontendRedirect("/activities?strava=callback_error"))
   }
 })
+
+routerAdd("POST", "/api/art/jobs", function (e) {
+  var art = require(__hooks + "/art.js")
+  var result = art.createJob(e)
+  return e.json(200, result)
+}, $apis.requireAuth("users"))
