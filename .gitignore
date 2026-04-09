@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+*.local
+*.tsbuildinfo
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# PocketBase
+pocketbase/pb_data/
+
+# Docker certs (server-specific)
+certs/
+vite.config.js
+vite.config.d.ts
+pb_data/*

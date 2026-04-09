@@ -1,0 +1,229 @@
+@import "tailwindcss";
+
+/* CSS 变量 */
+:root {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #e0e7ff;
+  --secondary: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --text: #1f2937;
+  --text-light: #6b7280;
+  --bg: #f9fafb;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  
+  /* Tailwind 风格变量 */
+  --color-surface-card: #ffffff;
+  --color-surface-elevated: #f3f4f6;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-text-placeholder: #9ca3af;
+  --color-border: #e5e7eb;
+}
+
+/* 暗色主题 */
+[data-theme="dark"] {
+  --primary-light: #312e81;
+  --text: #f3f4f6;
+  --text-light: #9ca3af;
+  --bg: #111827;
+  --card-bg: #1f2937;
+  --border: #374151;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  
+  --color-surface-card: #1f2937;
+  --color-surface-elevated: #374151;
+  --color-text: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-placeholder: #6b7280;
+  --color-border: #374151;
+}
+
+/* 跟随系统 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary-light: #312e81;
+    --text: #f3f4f6;
+    --text-light: #9ca3af;
+    --bg: #111827;
+    --card-bg: #1f2937;
+    --border: #374151;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    
+    --color-surface-card: #1f2937;
+    --color-surface-elevated: #374151;
+    --color-text: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-text-placeholder: #6b7280;
+    --color-border: #374151;
+  }
+}
+
+/* Tailwind 主题扩展 */
+@theme {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-secondary: #8b5cf6;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* 通用按钮样式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-light);
+}
+
+.btn-ghost:hover {
+  background: var(--border);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* 通用输入框样式 */
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card-bg);
+  color: var(--text);
+  transition: border-color 0.15s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.input::placeholder {
+  color: var(--text-light);
+}
+
+/* 卡片样式 */
+.card {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* 渐变按钮 */
+.btn-gradient {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+}
+
+.btn-gradient:hover {
+  opacity: 0.9;
+}
+
+/* 工具类 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* 过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-light);
+}
+
+/* 选择框和文本域 */
+select,
+textarea {
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}

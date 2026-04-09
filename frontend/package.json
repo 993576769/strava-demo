@@ -1,0 +1,32 @@
+{
+  "name": "vue-pocketbase-template-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^3.0.4",
+    "pocketbase": "^0.26.8",
+    "vue": "^3.5.30",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vueuse/core": "^14.2.1",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.8",
+    "vue-tsc": "^3.2.6",
+    "workbox-window": "^7.4.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": [
+    "types/**/*.d.ts",
+    "pb_migrations/**/*.js"
+  ]
+}
