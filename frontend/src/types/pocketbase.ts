@@ -1,4 +1,7 @@
 import type {
+  ActivitiesResponse,
+  ActivityStreamsResponse,
+  StravaConnectionsResponse,
   TodoCreate,
   TodoUpdate,
   TodosResponse,
@@ -14,6 +17,9 @@ import {
 
 export type Priority = `${TodosPriorityOptions}`
 export type Theme = `${UsersThemeOptions}`
+export type StravaConnectionStatus = 'active' | 'expired' | 'revoked' | 'reauthorization_required'
+export type ActivityVisibility = 'public' | 'followers_only' | 'only_me' | 'unknown'
+export type ActivitySyncStatus = 'pending_detail' | 'ready' | 'partial' | 'failed'
 export type TodoCreateInput = Omit<TodoCreate, 'priority'> & {
   priority?: Priority
 }
@@ -25,6 +31,9 @@ export type UserUpdateInput = Omit<UserUpdate, 'theme'> & {
 }
 
 export type User = UsersResponse
+export type StravaConnection = StravaConnectionsResponse<{ user?: UsersResponse }>
+export type Activity = ActivitiesResponse<{ user?: UsersResponse; connection?: StravaConnectionsResponse }>
+export type ActivityStream = ActivityStreamsResponse<{ activity?: ActivitiesResponse }>
 export type Todo = TodosResponse<string[], { user?: UsersResponse }>
 
 export type { TypedPocketBase }
@@ -36,6 +45,24 @@ export type FilterPriority = 'all' | Priority
 
 export const priorityValues = ['low', 'medium', 'high'] as const satisfies readonly Priority[]
 export const themeValues = ['light', 'dark', 'system'] as const satisfies readonly Theme[]
+export const stravaConnectionStatusValues = [
+  'active',
+  'expired',
+  'revoked',
+  'reauthorization_required',
+] as const satisfies readonly StravaConnectionStatus[]
+export const activityVisibilityValues = [
+  'public',
+  'followers_only',
+  'only_me',
+  'unknown',
+] as const satisfies readonly ActivityVisibility[]
+export const activitySyncStatusValues = [
+  'pending_detail',
+  'ready',
+  'partial',
+  'failed',
+] as const satisfies readonly ActivitySyncStatus[]
 export const filterStatusValues = ['all', 'active', 'completed'] as const satisfies readonly FilterStatus[]
 
 export const isPriority = (value: unknown): value is Priority =>
@@ -43,6 +70,15 @@ export const isPriority = (value: unknown): value is Priority =>
 
 export const isTheme = (value: unknown): value is Theme =>
   typeof value === 'string' && themeValues.includes(value as Theme)
+
+export const isStravaConnectionStatus = (value: unknown): value is StravaConnectionStatus =>
+  typeof value === 'string' && stravaConnectionStatusValues.includes(value as StravaConnectionStatus)
+
+export const isActivityVisibility = (value: unknown): value is ActivityVisibility =>
+  typeof value === 'string' && activityVisibilityValues.includes(value as ActivityVisibility)
+
+export const isActivitySyncStatus = (value: unknown): value is ActivitySyncStatus =>
+  typeof value === 'string' && activitySyncStatusValues.includes(value as ActivitySyncStatus)
 
 export const isFilterStatus = (value: unknown): value is FilterStatus =>
   typeof value === 'string' && filterStatusValues.includes(value as FilterStatus)
@@ -68,6 +104,30 @@ export const isTodo = (value: unknown): value is Todo => {
     'id' in value &&
     'title' in value &&
     'user' in value
+  )
+}
+
+export const isStravaConnection = (value: unknown): value is StravaConnection => {
+  if (typeof value !== 'object' || value === null) return false
+
+  return (
+    'collectionName' in value &&
+    value.collectionName === 'strava_connections' &&
+    'id' in value &&
+    'provider' in value &&
+    'status' in value
+  )
+}
+
+export const isActivity = (value: unknown): value is Activity => {
+  if (typeof value !== 'object' || value === null) return false
+
+  return (
+    'collectionName' in value &&
+    value.collectionName === 'activities' &&
+    'id' in value &&
+    'source' in value &&
+    'source_activity_id' in value
   )
 }
 

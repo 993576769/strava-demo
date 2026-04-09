@@ -1,19 +1,34 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Compass, Link2, LogOut, Route, ShieldCheck, Sparkles } from 'lucide-vue-next'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useStravaStore } from '@/stores/strava'
 
 const router = useRouter()
 const auth = useAuthStore()
+const strava = useStravaStore()
 
 const displayName = computed(() => auth.displayName)
 const email = computed(() => auth.user?.email ?? '')
+const stravaStatusLabel = computed(() => strava.statusLabel)
+const lastSyncLabel = computed(() => {
+  if (!strava.lastSyncAt) return '首次同步尚未开始'
+  return `最近同步时间：${new Date(strava.lastSyncAt).toLocaleString()}`
+})
 
 const handleLogout = () => {
   auth.logout()
   router.push({ name: 'login' })
+}
+
+onMounted(async () => {
+  await strava.fetchConnection()
+})
+
+const openActivities = () => {
+  router.push({ name: 'activities' })
 }
 </script>
 
@@ -53,13 +68,17 @@ const handleLogout = () => {
           </p>
 
           <div class="mt-6 flex flex-wrap gap-3">
-            <button class="btn btn-primary">
+            <button class="btn btn-primary" @click="strava.startConnection" :disabled="strava.connecting || !strava.canConnect">
               <Link2 class="w-4 h-4 mr-2" />
-              连接 Strava
+              {{
+                strava.connecting
+                  ? '正在跳转到 Strava...'
+                  : (strava.canConnect ? '连接 Strava' : 'Strava 状态已读取')
+              }}
             </button>
-            <button class="btn btn-ghost">
+            <button class="btn btn-ghost" @click="openActivities">
               <Sparkles class="w-4 h-4 mr-2" />
-              查看实现清单
+              查看本地活动
             </button>
           </div>
 
@@ -70,7 +89,7 @@ const handleLogout = () => {
             </div>
             <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
               <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">数据源</p>
-              <p class="mt-2 text-sm font-medium text-[var(--color-text)]">Strava 即将接入</p>
+              <p class="mt-2 text-sm font-medium text-[var(--color-text)]">{{ stravaStatusLabel }}</p>
             </div>
             <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
               <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">风格</p>
@@ -87,7 +106,7 @@ const handleLogout = () => {
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-[var(--color-text)]">当前状态</h3>
-                <p class="text-sm text-[var(--color-text-muted)]">阶段 0 + 阶段 1 正在落地</p>
+                <p class="text-sm text-[var(--color-text-muted)]">阶段 2 正在推进中</p>
               </div>
             </div>
 
@@ -102,7 +121,7 @@ const handleLogout = () => {
               </li>
               <li class="flex gap-3">
                 <span class="mt-1 w-2 h-2 rounded-full bg-primary shrink-0"></span>
-                下一步会新增 Strava 连接、活动同步和生成任务数据结构。
+                当前已补上 Strava 连接状态、活动列表入口和 OAuth 发起链路，下一步会继续接首次同步。
               </li>
             </ul>
           </section>
@@ -125,7 +144,7 @@ const handleLogout = () => {
               <div>
                 <h3 class="text-base font-semibold text-[var(--color-text)]">接下来要做</h3>
                 <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                  先补 `strava_connections`、`activities`、`activity_streams` 三类数据结构，再接 Strava OAuth 和首次同步链路。
+                  {{ lastSyncLabel }}
                 </p>
               </div>
             </div>

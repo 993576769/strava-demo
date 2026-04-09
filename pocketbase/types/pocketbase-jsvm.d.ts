@@ -32,6 +32,15 @@ declare interface PBCollectionOptions {
 declare interface PBCollection {
   id: string
   fields: PBFieldsList
+  passwordAuth?: {
+    enabled?: boolean
+  }
+  oauth2?: {
+    enabled?: boolean
+  }
+  otp?: {
+    enabled?: boolean
+  }
   addIndex(name: string, unique: boolean, columnsExpr: string, optWhereExpr: string): void
   removeIndex(name: string): void
 }
