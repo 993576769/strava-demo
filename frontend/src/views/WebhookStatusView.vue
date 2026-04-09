@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, CheckCircle2, Link2, RefreshCw, ShieldCheck, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { useStravaStore } from '@/stores/strava'
@@ -8,6 +8,8 @@ import { useSyncEventsStore } from '@/stores/sync-events'
 const router = useRouter()
 const stravaStore = useStravaStore()
 const syncEventsStore = useSyncEventsStore()
+const copyFeedback = ref('')
+let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null
 
 const webhookEvents = computed(() => syncEventsStore.events.filter((event) => event.category === 'webhook'))
 const connectionEvents = computed(() => syncEventsStore.events.filter((event) => event.category === 'connection'))
@@ -22,6 +24,17 @@ const callbackBase = computed(() => {
   return ''
 })
 const webhookVerifyUrl = computed(() => `${callbackBase.value}/api/integrations/strava/webhook`)
+const verifyChecklistText = computed(() =>
+  [
+    'Strava webhook verify checklist',
+    '',
+    `Webhook Callback URL: ${webhookVerifyUrl.value}`,
+    '',
+    '1. 确认 Strava 应用中的 callback domain 与当前 PocketBase 域名一致。',
+    '2. 确认 `.env` 中的 `STRAVA_WEBHOOK_VERIFY_TOKEN` 与订阅时填写的 `verify_token` 一致。',
+    '3. 发送一次测试事件后，检查这个页面里的“最近 webhook 事件”是否新增记录。',
+  ].join('\n'),
+)
 
 const formatDateTime = (value: string) => {
   return new Date(value).toLocaleString('zh-CN', {
@@ -59,6 +72,47 @@ const eventStatusLabel = (status: string) => {
   }
 }
 
+const showCopyFeedback = (message: string) => {
+  copyFeedback.value = message
+
+  if (copyFeedbackTimer) {
+    clearTimeout(copyFeedbackTimer)
+  }
+
+  copyFeedbackTimer = setTimeout(() => {
+    copyFeedback.value = ''
+    copyFeedbackTimer = null
+  }, 2200)
+}
+
+const copyText = async (text: string, successMessage: string) => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      showCopyFeedback(successMessage)
+      return
+    }
+
+    if (typeof document === 'undefined') {
+      throw new Error('clipboard unavailable')
+    }
+
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', 'true')
+    textarea.style.position = 'absolute'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    showCopyFeedback(successMessage)
+  }
+  catch {
+    showCopyFeedback('复制失败，请手动复制。')
+  }
+}
+
 const refreshPage = async () => {
   await Promise.all([
     stravaStore.fetchConnection(),
@@ -77,6 +131,12 @@ const disconnect = async () => {
 
 onMounted(async () => {
   await refreshPage()
+})
+
+onUnmounted(() => {
+  if (copyFeedbackTimer) {
+    clearTimeout(copyFeedbackTimer)
+  }
 })
 </script>
 
@@ -144,10 +204,21 @@ onMounted(async () => {
             <div class="flex items-start gap-3">
               <ShieldCheck class="w-5 h-5 mt-1 text-primary shrink-0" />
               <div class="min-w-0">
-                <h2 class="text-base font-semibold text-[var(--color-text)]">联调检查清单</h2>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <h2 class="text-base font-semibold text-[var(--color-text)]">联调检查清单</h2>
+                  <button class="btn btn-ghost" @click="copyText(verifyChecklistText, 'verify checklist 已复制')">
+                    复制 verify checklist
+                  </button>
+                </div>
+                <p v-if="copyFeedback" class="mt-3 text-sm text-primary">{{ copyFeedback }}</p>
                 <div class="mt-4 grid gap-3">
                   <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
-                    <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Webhook Callback URL</p>
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Webhook Callback URL</p>
+                      <button class="btn btn-ghost" @click="copyText(webhookVerifyUrl, 'callback URL 已复制')">
+                        复制 callback URL
+                      </button>
+                    </div>
                     <p class="mt-2 break-all text-sm font-medium text-[var(--color-text)]">{{ webhookVerifyUrl }}</p>
                   </div>
                   <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
