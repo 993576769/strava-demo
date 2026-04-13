@@ -1,6 +1,7 @@
 module.exports = {
   supportedStylePresets: ["sketch", "watercolor", "poster"],
   supportedAspectRatios: ["portrait", "square", "landscape"],
+  templateReferenceImageUrl: "https://todo-demo-744531146978-ap-east-1-an.s3.ap-east-1.amazonaws.com/template/openai_images_6Ksy3QUezrWe2tkrl7TZcA18ILw2_pWTkyPf1DSPoOKW1FCzD_generated_map.png",
 
   normalizeStylePreset: function (value) {
     var preset = String(value || "sketch").trim().toLowerCase()
@@ -26,6 +27,10 @@ module.exports = {
       includeStats: options.includeStats !== false,
       version: "v1",
     }
+  },
+
+  getTemplateReferenceImageUrl: function () {
+    return this.templateReferenceImageUrl
   },
 
   buildPromptSnapshot: function (activity, stylePreset, renderOptions) {

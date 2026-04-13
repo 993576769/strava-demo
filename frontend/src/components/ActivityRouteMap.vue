@@ -19,8 +19,8 @@ const props = withDefaults(defineProps<{
   filename: 'activity-route',
 })
 
-const exportMimeType = 'image/jpeg'
-const exportFileExtension = 'jpg'
+const exportMimeType = 'image/png'
+const exportFileExtension = 'png'
 
 const mapContainer = ref<HTMLDivElement | null>(null)
 const exporting = ref(false)
@@ -114,7 +114,7 @@ const buildImageDataUrl = async () => {
     return null
 
   return new Promise<string | null>((resolve, reject) => {
-    leafletImage(map, async (error: unknown, canvas: HTMLCanvasElement) => {
+    leafletImage(map, (error: unknown, canvas: HTMLCanvasElement) => {
       if (error) {
         reject(error)
         return
@@ -133,7 +133,7 @@ const buildImageDataUrl = async () => {
 
       context.scale(scale, scale)
       context.drawImage(canvas, 0, 0)
-      resolve(hdCanvas.toDataURL(exportMimeType, 0.92))
+      resolve(hdCanvas.toDataURL(exportMimeType))
     })
   })
 }

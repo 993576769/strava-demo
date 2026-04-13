@@ -199,8 +199,15 @@ module.exports = {
 
     return [
       "Create a premium hand-drawn route artwork inspired by a Strava activity.",
-      "The main subject must be a single elegant route path with minimal map abstraction.",
-      "No people, no vehicles, no photorealistic scenery, no app UI, no watermark.",
+      "Multi-image instruction: image 1 is the route structure image, image 2 is the background style reference image.",
+      "Please perform composition and style transfer: keep the route subject from image 1, and use image 2 only to generate the background style and overall atmosphere.",
+      "The route subject must strictly follow image 1 and preserve its topology, bends, turns, loops, out-and-back structure, and overall silhouette.",
+      "Treat image 1 like a tracing guide or control image. The final route must match image 1 shape-to-shape.",
+      "Image 2 may only influence background style, palette, paper texture, decorative elements, and composition mood. It must never replace, cover, or reshape the route from image 1.",
+      "If the style from image 2 conflicts with the route from image 1, always preserve the route from image 1.",
+      "The background map texture and style elements must fill the entire canvas as a full-bleed background. Do not keep them only in the center, and do not leave large blank borders or empty margins.",
+      "Small place names or map labels are allowed if they help identify the location, but they must stay subtle and must not cover the route or turn the image into a literal map screenshot.",
+      "No people, no vehicles, no app UI, no watermark, no dominant text.",
       "Style:",
       stylePromptMap[stylePreset] || stylePromptMap.sketch,
       ". Composition:",
@@ -213,19 +220,28 @@ module.exports = {
       distanceKm + ",",
       startDate || "date unavailable",
       ".",
+      "Again: keep the route subject from image 1, and use image 2 only for background style.",
     ].join(" ")
   },
 
   buildSubmitBody: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
+    var art = require(__hooks + "/art.js")
+    var referenceImageUrl = art.getTemplateReferenceImageUrl()
+    var imageUrls = []
     if (!routeBaseImageUrl) {
       throw new BadRequestError("Missing route base image URL for Jimeng image-to-image render")
+    }
+
+    imageUrls.push(routeBaseImageUrl)
+    if (referenceImageUrl) {
+      imageUrls.push(referenceImageUrl)
     }
 
     var body = {
       req_key: config.reqKey,
       prompt: this.buildPrompt(activityRecord, stylePreset, renderOptions),
-      image_urls: [routeBaseImageUrl],
+      image_urls: imageUrls,
       return_url: true,
     }
 
@@ -389,7 +405,8 @@ module.exports = {
 
   render: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
-    var submitPayload = this.callHelper(config.submitAction, this.buildSubmitBody(activityRecord, stylePreset, renderOptions, routeBaseImageUrl))
+    var submitBody = this.buildSubmitBody(activityRecord, stylePreset, renderOptions, routeBaseImageUrl)
+    var submitPayload = this.callHelper(config.submitAction, submitBody)
     var taskId = this.extractTaskId(submitPayload)
 
     if (!taskId) {
@@ -405,6 +422,7 @@ module.exports = {
     return {
       taskId: taskId,
       requestId: resultPayload.ResponseMetadata ? resultPayload.ResponseMetadata.RequestId || "" : "",
+      referenceImageUrl: require(__hooks + "/art.js").getTemplateReferenceImageUrl(),
       imageAsset: imageAsset,
       rawResult: resultPayload,
     }

@@ -90,10 +90,15 @@ module.exports = {
 
     return [
       "以输入图片为基础进行图生图。",
-      "保持输入图片中的主体姿态、路线结构和整体流动感不变。",
-      "主体必须是一条清晰、优雅、具有强烈辨识度的单一路线轨迹，路线是画面的视觉中心。",
-      "整体风格偏超现实电影感，强调光影层次、景深、动感和高级质感。",
-      "禁止人物、车辆、真实地图截图、应用 UI、品牌标识和多余文字。",
+      "多图输入说明：图片1是路线结构图，图片2是背景风格参考图。",
+      "请执行组合与风格迁移：保留图片1中的路线主体，参考图片2生成背景风格与画面氛围。",
+      "路线主体必须严格使用图片1的路线形状与走向，完整保留路线拓扑、弯折、拐点、闭环、往返关系和整体轮廓，不得改写、增删、拉直、平滑或重绘为另一条路线。",
+      "把图片1当成路线描图模板或控制图，输出中的路线要与图片1逐形对应。",
+      "图片2只提供背景风格、配色、纸张肌理、装饰元素和整体气质，不能替代、覆盖或主导图片1中的路线结构。",
+      "如果图片2的风格与图片1的路线结构冲突，始终优先保留图片1的路线。",
+      "背景地图纹理与风格元素必须铺满整个画面，做成全幅满版背景，不要只出现在中间区域，不要留下大面积空白边缘、白边或留白框。",
+      "可以在背景中少量显示地名、地点标签或地图文字，帮助识别地点，但必须简洁克制，不要遮挡路线，不要变成真实地图截图。",
+      "禁止人物、车辆、应用 UI、品牌标识、水印和多余文字。",
       "风格：",
       stylePromptMap[stylePreset] || stylePromptMap.sketch,
       "。",
@@ -107,6 +112,7 @@ module.exports = {
       distanceKm + "，",
       startDate || "日期未知",
       "。",
+      "再次强调：保留图片1的路线主体，参考图片2生成背景风格。",
     ].join("")
   },
 
@@ -135,23 +141,39 @@ module.exports = {
 
   render: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
+    var art = require(__hooks + "/art.js")
+    var referenceImageUrl = art.getTemplateReferenceImageUrl()
+    var inputImages = [routeBaseImageUrl]
     if (!routeBaseImageUrl) {
       throw new BadRequestError("Missing route base image URL for Doubao image-to-image render")
     }
 
-    var payload = this.callHelper({
+    if (referenceImageUrl) {
+      inputImages.push(referenceImageUrl)
+    }
+
+    var requestBody = {
       model: config.model,
       prompt: this.buildPrompt(activityRecord, stylePreset, renderOptions),
       size: config.size,
       outputFormat: config.outputFormat,
       responseFormat: config.responseFormat,
-      image: routeBaseImageUrl,
+      image: inputImages,
       watermark: config.watermark,
-    })
+      sequentialImageGeneration: "disabled",
+    }
+    var payload = this.callHelper(requestBody)
 
     return {
       model: config.model,
       sourceImageUrl: routeBaseImageUrl,
+      referenceImageUrl: referenceImageUrl,
+      sourceImageUrls: payload && Array.isArray(payload.image)
+        ? payload.image
+        : payload && Array.isArray(payload.images)
+          ? payload.images
+          : [routeBaseImageUrl],
+      fallbackUsed: !!(payload && payload.fallbackUsed),
       imageAsset: this.extractImageAsset(payload),
       rawResult: payload,
     }
