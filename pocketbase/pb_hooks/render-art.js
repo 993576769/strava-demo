@@ -1,4 +1,12 @@
 module.exports = {
+  claimablePendingFilter: function (nowIso) {
+    return 'status = "pending" && route_base_image_url != "" && (queued_at = "" || queued_at <= "' + nowIso + '")'
+  },
+
+  claimableStaleFilter: function (staleBeforeIso) {
+    return 'status = "processing" && route_base_image_url != "" && started_at != "" && started_at <= "' + staleBeforeIso + '"'
+  },
+
   getOptionalEnv: function (key, fallback) {
     var value = $os.getenv(key)
     return value || fallback
@@ -219,14 +227,19 @@ module.exports = {
     }
   },
 
-  markJobPending: function (app, job) {
+  markJobPending: function (app, job, options) {
+    var queuedAt = options && options.queuedAt ? options.queuedAt : new Date().toISOString()
+    var clearErrors = !options || options.clearErrors !== false
+
     job.set("status", "pending")
-    job.set("queued_at", new Date().toISOString())
+    job.set("queued_at", queuedAt)
     job.set("started_at", "")
     job.set("finished_at", "")
     job.set("worker_ref", "")
-    job.set("error_code", "")
-    job.set("error_message", "")
+    if (clearErrors) {
+      job.set("error_code", "")
+      job.set("error_message", "")
+    }
     app.save(job)
   },
 
@@ -259,6 +272,169 @@ module.exports = {
     job.set("error_message", err && err.message ? err.message : code)
     job.set("finished_at", new Date().toISOString())
     app.save(job)
+  },
+
+  isClaimablePendingJob: function (job, nowIso) {
+    var queuedAt = job.getString("queued_at")
+    return job.getString("status") === "pending"
+      && !!job.getString("route_base_image_url")
+      && (!queuedAt || queuedAt <= nowIso)
+  },
+
+  isClaimableStaleProcessingJob: function (job, staleBeforeIso) {
+    var startedAt = job.getString("started_at")
+    return job.getString("status") === "processing"
+      && !!job.getString("route_base_image_url")
+      && !!startedAt
+      && startedAt <= staleBeforeIso
+  },
+
+  findClaimCandidate: function (app, nowIso, staleBeforeIso) {
+    try {
+      return {
+        job: app.findFirstRecordByFilter(
+          "art_jobs",
+          this.claimableStaleFilter(staleBeforeIso)
+        ),
+        claimSource: "stale_processing",
+      }
+    } catch (_) {}
+
+    try {
+      return {
+        job: app.findFirstRecordByFilter(
+          "art_jobs",
+          this.claimablePendingFilter(nowIso)
+        ),
+        claimSource: "pending",
+      }
+    } catch (_) {}
+
+    return null
+  },
+
+  claimJobForWorker: function (app, workerRef, nowIso) {
+    var staleProcessingMs = Number.parseInt(this.getOptionalEnv("ART_WORKER_STALE_PROCESSING_MS", "120000"), 10)
+    var staleBeforeIso = new Date(Date.now() - staleProcessingMs).toISOString()
+    var candidate = this.findClaimCandidate(app, nowIso, staleBeforeIso)
+    if (!candidate) {
+      return {
+        claimed: false,
+      }
+    }
+
+    var job = app.findFirstRecordByFilter(
+      "art_jobs",
+      "id = {:jobId}",
+      {
+        jobId: candidate.job.id,
+      }
+    )
+
+    var stillClaimable = candidate.claimSource === "stale_processing"
+      ? this.isClaimableStaleProcessingJob(job, staleBeforeIso)
+      : this.isClaimablePendingJob(job, nowIso)
+
+    if (!stillClaimable) {
+      return {
+        claimed: false,
+      }
+    }
+
+    this.markJobProcessing(app, job, workerRef)
+
+    return {
+      claimed: true,
+      claimSource: candidate.claimSource,
+      job: {
+        id: job.id,
+        status: job.getString("status"),
+        worker_ref: job.getString("worker_ref"),
+      },
+    }
+  },
+
+  getWorkerRequestBody: function (e) {
+    var body = e.requestInfo().body || {}
+    this.assertWorkerSecret(body.secret || body.workerSecret)
+    return body
+  },
+
+  assertWorkerOwnership: function (job, workerRef) {
+    if (!workerRef) {
+      throw new BadRequestError("Missing workerRef")
+    }
+
+    if (job.getString("worker_ref") !== workerRef) {
+      throw new ForbiddenError("Job is claimed by another worker")
+    }
+  },
+
+  assertProcessingClaim: function (job, workerRef) {
+    this.assertWorkerOwnership(job, workerRef)
+
+    if (job.getString("status") !== "processing") {
+      throw new BadRequestError("Job is not currently processing")
+    }
+  },
+
+  recoverClaimedJob: function (app, context, options) {
+    var job = context.job
+    var reason = options && options.reason ? String(options.reason) : "skipped"
+    var retryAt = options && options.retryAt ? String(options.retryAt) : ""
+    var currentStatus = job.getString("status")
+    var hasResult = this.getExistingResult(app, context.userId, job.id)
+
+    if (hasResult || currentStatus === "succeeded" || currentStatus === "canceled") {
+      return {
+        recovered: false,
+        reason: "skipped",
+      }
+    }
+
+    if (reason === "retryable_error") {
+      if (currentStatus !== "failed" && currentStatus !== "processing") {
+        return {
+          recovered: false,
+          reason: "skipped",
+        }
+      }
+
+      this.markJobPending(app, job, {
+        queuedAt: retryAt || new Date().toISOString(),
+        clearErrors: false,
+      })
+
+      return {
+        recovered: true,
+        reason: "retryable_error",
+        scheduledRetryAt: job.getString("queued_at"),
+      }
+    }
+
+    if (reason === "transport_failure") {
+      if (currentStatus !== "processing") {
+        return {
+          recovered: false,
+          reason: "skipped",
+        }
+      }
+
+      this.markJobPending(app, job, {
+        queuedAt: new Date().toISOString(),
+        clearErrors: true,
+      })
+
+      return {
+        recovered: true,
+        reason: "transport_failure",
+      }
+    }
+
+    return {
+      recovered: false,
+      reason: "skipped",
+    }
   },
 
   buildJimengAssets: function (jobRecord, activityRecord, stylePreset, renderOptions) {
@@ -328,8 +504,15 @@ module.exports = {
     var renderOptions = art.normalizeRenderOptions(context.job.getRaw("render_options_json"))
     var stylePreset = art.normalizeStylePreset(context.job.getString("style_preset"))
     var provider = this.getRequestedProvider(options && options.forceProvider)
+    var workerRef = options && options.workerRef
+      ? options.workerRef
+      : provider === "jimeng46" ? "jimeng-4.6" : "mock-svg-renderer:v1"
 
-    this.markJobProcessing(app, context.job, provider === "jimeng46" ? "jimeng-4.6" : "mock-svg-renderer:v1")
+    if (options && options.requireClaimedWorker) {
+      this.assertProcessingClaim(context.job, workerRef)
+    } else {
+      this.markJobProcessing(app, context.job, workerRef)
+    }
 
     try {
       var assets = provider === "jimeng46"
@@ -407,9 +590,32 @@ module.exports = {
     return this.processContext(e.app, this.getJobContextByUserId(e.app, e.auth.id, e.request.pathValue("id")), options)
   },
 
+  claimQueuedJob: function (e) {
+    var body = this.getWorkerRequestBody(e)
+    var workerRef = String(body.workerRef || "").trim()
+    var nowIso = body.now ? String(body.now) : new Date().toISOString()
+    return this.claimJobForWorker(e.app, workerRef, nowIso)
+  },
+
   processQueuedJob: function (e, options) {
-    var body = e.requestInfo().body || {}
-    this.assertWorkerSecret(body.secret || body.workerSecret)
-    return this.processContext(e.app, this.getJobContextById(e.app, e.request.pathValue("id")), options)
+    var body = this.getWorkerRequestBody(e)
+    var workerRef = String(body.workerRef || "").trim()
+    return this.processContext(e.app, this.getJobContextById(e.app, e.request.pathValue("id")), {
+      forceProvider: options && options.forceProvider,
+      requireClaimedWorker: true,
+      workerRef: workerRef,
+    })
+  },
+
+  recoverQueuedJob: function (e) {
+    var body = this.getWorkerRequestBody(e)
+    var workerRef = String(body.workerRef || "").trim()
+    var context = this.getJobContextById(e.app, e.request.pathValue("id"))
+    this.assertWorkerOwnership(context.job, workerRef)
+
+    return this.recoverClaimedJob(e.app, context, {
+      reason: body.reason,
+      retryAt: body.retryAt,
+    })
   },
 }

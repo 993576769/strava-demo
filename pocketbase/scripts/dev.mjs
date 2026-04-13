@@ -5,6 +5,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import dotenv from 'dotenv'
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(scriptDir, '..', '..')
@@ -13,42 +14,15 @@ const migrationsDir = path.resolve(pocketbaseDir, 'pb_migrations')
 const hooksDir = path.resolve(pocketbaseDir, 'pb_hooks')
 const dataDir = path.resolve(repoRoot, 'pb_data')
 
-const loadEnvFile = (filename) => {
-  const filepath = path.join(repoRoot, filename)
-  if (!fs.existsSync(filepath)) {
-    return
-  }
+dotenv.config({
+  path: path.join(repoRoot, '.env'),
+  override: false,
+})
 
-  const content = fs.readFileSync(filepath, 'utf8')
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim()
-    if (!line || line.startsWith('#')) {
-      continue
-    }
-
-    const separator = line.indexOf('=')
-    if (separator === -1) {
-      continue
-    }
-
-    const key = line.slice(0, separator).trim()
-    let value = line.slice(separator + 1).trim()
-
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1)
-    }
-
-    if (!(key in process.env)) {
-      process.env[key] = value
-    }
-  }
-}
-
-loadEnvFile('.env')
-loadEnvFile('.env.local')
+dotenv.config({
+  path: path.join(repoRoot, '.env.local'),
+  override: false,
+})
 
 const canExecute = async (target) => {
   try {

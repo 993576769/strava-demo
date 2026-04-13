@@ -122,3 +122,13 @@ routerAdd("POST", "/api/internal/art/jobs/{id}/process", function (e) {
   var renderArt = require(__hooks + "/render-art.js")
   return e.json(200, renderArt.processQueuedJob(e))
 })
+
+routerAdd("POST", "/api/internal/art/jobs/claim", function (e) {
+  var renderArt = require(__hooks + "/render-art.js")
+  return e.json(200, renderArt.claimQueuedJob(e))
+})
+
+routerAdd("POST", "/api/internal/art/jobs/{id}/recover", function (e) {
+  var renderArt = require(__hooks + "/render-art.js")
+  return e.json(200, renderArt.recoverQueuedJob(e))
+})

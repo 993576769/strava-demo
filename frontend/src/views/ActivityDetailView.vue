@@ -217,12 +217,24 @@ const createArtJob = async () => {
   }
 
   const routeBaseDataUrl = await routeMapRef.value?.exportPngDataUrl()
+  if (!routeBaseDataUrl && !hasRouteBaseImageUrl(job)) {
+    createFeedback.value = '轨迹底稿还没准备好，请等待地图预览加载完成后再试。'
+    await refreshQueueState()
+    return
+  }
+
   if (routeBaseDataUrl && !hasRouteBaseImageUrl(job)) {
-    await artJobsStore.uploadRouteBase(
+    const uploadResult = await artJobsStore.uploadRouteBase(
       job.id,
       routeBaseDataUrl,
       `${activity.value.sport_type || 'activity'}-${activity.value.id}-route-base`,
     )
+
+    if (!uploadResult?.routeBaseImageUrl) {
+      createFeedback.value = artJobsStore.error || '轨迹底稿上传失败，请稍后重试。'
+      await refreshQueueState()
+      return
+    }
   }
 
   const queued = await artResultsStore.queueJob(job.id)

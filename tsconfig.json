@@ -1,0 +1,13 @@
+{
+  "extends": "./pocketbase/tsconfig.scripts.json",
+  "include": [
+    "scripts/**/*.ts",
+    "scripts/**/*.mts",
+    "scripts/**/*.d.ts"
+  ],
+  "exclude": [
+    "frontend",
+    "node_modules",
+    "pb_data"
+  ]
+}

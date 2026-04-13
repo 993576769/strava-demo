@@ -105,6 +105,11 @@ const getLatLngs = (): LatLngTuple[] => {
 }
 
 const buildImageDataUrl = async () => {
+  if (!canRenderRoute.value)
+    return null
+
+  await renderRoute()
+
   if (!map || !leafletImage)
     return null
 

@@ -11,6 +11,9 @@
     "types": ["node"]
   },
   "include": [
+    "../scripts/**/*.d.ts",
+    "../scripts/**/*.ts",
+    "../scripts/**/*.mts",
     "scripts/**/*.ts",
     "scripts/**/*.mts",
     "seeds/**/*.ts",

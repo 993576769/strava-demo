@@ -34,3 +34,4 @@ certs/
 vite.config.js
 vite.config.d.ts
 pb_data/*
+scripts/load-env.mjs

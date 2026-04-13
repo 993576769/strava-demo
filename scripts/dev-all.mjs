@@ -11,7 +11,7 @@ const immediateProcesses = [
   {
     name: 'jimeng-helper',
     command: process.execPath,
-    args: [path.resolve(repoRoot, 'scripts/jimeng-helper.mjs')],
+    args: ['--import', 'tsx', path.resolve(repoRoot, 'scripts/jimeng-helper.mts')],
     color: '\x1b[34m',
   },
   {
@@ -32,7 +32,7 @@ const deferredProcesses = [
   {
     name: 'art-worker',
     command: process.execPath,
-    args: [path.resolve(repoRoot, 'scripts/art-worker.mjs')],
+    args: ['--import', 'tsx', path.resolve(repoRoot, 'scripts/art-worker.mts')],
     color: '\x1b[32m',
   },
 ]
