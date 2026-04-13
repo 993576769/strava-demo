@@ -88,6 +88,7 @@ const getResultRendererLabel = (result: unknown) => {
   if (!metadata || typeof metadata !== 'object') return '成品'
 
   const provider = 'provider' in metadata ? metadata.provider : undefined
+  if (provider === 'doubao-seedream') return 'Doubao Seedream 5.0 成品'
   if (provider === 'jimeng46') return '即梦 4.6 成品'
 
   const renderer = 'renderer' in metadata ? metadata.renderer : undefined
@@ -514,7 +515,7 @@ onUnmounted(() => {
             <div class="min-w-0 flex-1">
               <h2 class="text-base font-semibold text-[var(--color-text)]">生成结果</h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                这里会展示当前 provider 产出的结果图。未配置即梦 4.6 时，会自动显示 mock 回退结果。
+                这里会展示当前 provider 产出的结果图。已配置 `doubao-seedream-5-0-260128` 或即梦 4.6 时会优先走真实生成，否则会自动显示 mock 回退结果。
               </p>
 
               <div v-if="artResultsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">

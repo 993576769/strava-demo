@@ -15,6 +15,12 @@ const immediateProcesses = [
     color: '\x1b[34m',
   },
   {
+    name: 'doubao-helper',
+    command: process.execPath,
+    args: ['--import', 'tsx', path.resolve(repoRoot, 'scripts/doubao-helper.mts')],
+    color: '\x1b[33m',
+  },
+  {
     name: 'pocketbase',
     command: process.execPath,
     args: [path.resolve(repoRoot, 'pocketbase/scripts/dev.mjs')],

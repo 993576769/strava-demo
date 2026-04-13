@@ -9,6 +9,7 @@
 - 从活动创建 `art_jobs`
 - 通过统一渲染入口生成 `art_results`
 - 已支持接入即梦 4.6，未配置时自动回退到 mock SVG 渲染器
+- 已支持通过 JS OpenAI SDK 接入 `doubao-seedream-5-0-260128`
 - 查看结果详情并下载成品
 
 当前仍是 MVP 迭代中，默认保留 mock 回退，方便在未配置火山引擎 AK/SK 时继续联调产品闭环。
@@ -24,6 +25,7 @@
   - 生成任务创建
   - 统一生成结果页
   - 即梦 4.6 渲染接入
+  - Doubao Seedream 5.0 渲染接入
 - 暂未完成：
   - Strava webhook
   - 更稳的增量同步和退避策略
@@ -58,6 +60,8 @@ cp frontend/.env.example frontend/.env
 
 - `PB_ADMIN_EMAIL`
 - `PB_ADMIN_PASSWORD`
+- `PB_HOOKS_WATCH`
+  开发环境建议设为 `false`，避免 `pb_hooks` 文件事件触发 PocketBase 自动重启；只有需要 hook 热重载时再改成 `true`
 - `APP_URL`
   前端本地地址，例如 `http://127.0.0.1:5173`
 - `STRAVA_CLIENT_ID`
@@ -70,13 +74,36 @@ cp frontend/.env.example frontend/.env
 - `STRAVA_SCOPES`
   默认建议 `read,activity:read_all`
 - `ART_RENDER_PROVIDER`
-  可选 `mock` 或 `jimeng46`；不填时会自动判断，如果即梦参数齐全则优先走 `jimeng46`
+  可选 `mock`、`jimeng46` 或 `doubao-seedream`；不填时会自动判断，如果即梦参数齐全则优先走 `jimeng46`，否则在 `ARK_API_KEY` 存在时走 `doubao-seedream`
 - `ART_ASSET_BASE_URL`
   公开可访问的应用域名，用来拼接轨迹底稿图片 URL；图生图模式下必须能被火山引擎访问
 - `VOLCENGINE_ACCESS_KEY`
 - `VOLCENGINE_SECRET_KEY`
 - `JIMENG_REQ_KEY`
   请按即梦 4.6 官方接口文档填写对应模型的 `req_key`
+- `ARK_API_KEY`
+  用于通过 JS OpenAI SDK 调用火山方舟兼容接口
+
+如果要启用 `doubao-seedream-5-0-260128`，建议补这些字段：
+
+- `ARK_BASE_URL`
+  默认 `https://ark.cn-beijing.volces.com/api/v3`
+- `DOUBAO_SEEDREAM_MODEL`
+  默认 `doubao-seedream-5-0-260128`
+- `DOUBAO_IMAGE_SIZE`
+  默认 `2K`
+- `DOUBAO_OUTPUT_FORMAT`
+  默认 `png`
+- `DOUBAO_RESPONSE_FORMAT`
+  默认 `url`
+- `DOUBAO_WATERMARK`
+  默认 `true`
+- `DOUBAO_HELPER_HOST`
+  默认 `127.0.0.1`
+- `DOUBAO_HELPER_PORT`
+  默认 `3211`
+- `DOUBAO_HELPER_TIMEOUT_MS`
+  默认 `120000`
 
 如果要启用即梦 4.6，建议同时补这些可选字段：
 
@@ -168,7 +195,7 @@ pnpm run dev:web
 3. 授权成功后进入活动页。
 4. 点击“同步活动”。
 5. 打开某条活动详情，创建生成任务。
-6. 如果已配置即梦 4.6，等待远端生成完成；否则会自动回退到 mock。
+6. 如果已配置 `doubao-seedream-5-0-260128` 或即梦 4.6，等待远端生成完成；否则会自动回退到 mock。
 7. 查看结果页并下载成品。
 
 ## 常用命令
@@ -176,6 +203,7 @@ pnpm run dev:web
 ```bash
 pnpm run dev:web
 pnpm run dev:pb
+pnpm run dev:doubao-helper
 pnpm run dev:all
 pnpm run build
 pnpm run seed:pocketbase

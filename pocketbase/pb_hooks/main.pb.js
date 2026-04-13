@@ -1,3 +1,5 @@
+var hookLogger = $app.logger().with("module", "main.pb.js")
+
 routerAdd("POST", "/api/integrations/strava/connect", function (e) {
   var utils = require(__hooks + "/strava.js")
   var stateToken = utils.createStateToken(e.auth.id)
@@ -35,7 +37,14 @@ routerAdd("GET", "/api/integrations/strava/callback", function (e) {
 
     return e.redirect(302, utils.buildFrontendRedirect("/activities?strava=connected"))
   } catch (err) {
-    console.log(err)
+    hookLogger.error(
+      "Strava callback failed",
+      "route", "/api/integrations/strava/callback",
+      "code", code || "",
+      "state", state || "",
+      "scope", scope || "",
+      "error", err
+    )
     return e.redirect(302, utils.buildFrontendRedirect("/activities?strava=callback_error"))
   }
 })
@@ -63,7 +72,15 @@ routerAdd("POST", "/api/integrations/strava/webhook", function (e) {
   try {
     utils.processWebhookEvent(body)
   } catch (err) {
-    console.log(err)
+    hookLogger.error(
+      "Strava webhook processing failed",
+      "route", "/api/integrations/strava/webhook",
+      "ownerId", body && body.owner_id ? String(body.owner_id) : "",
+      "aspectType", body && body.aspect_type ? String(body.aspect_type) : "",
+      "objectType", body && body.object_type ? String(body.object_type) : "",
+      "eventTime", body && body.event_time ? String(body.event_time) : "",
+      "error", err
+    )
     var ownerId = body && body.owner_id
     var connection = ownerId ? utils.getConnectionByAthleteId(ownerId) : null
     if (connection) {

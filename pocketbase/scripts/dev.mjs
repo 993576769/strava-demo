@@ -46,11 +46,13 @@ const resolveExecutable = async () => {
 const executable = await resolveExecutable()
 const adminEmail = process.env.PB_ADMIN_EMAIL
 const adminPassword = process.env.PB_ADMIN_PASSWORD
+const hooksWatchEnabled = String(process.env.PB_HOOKS_WATCH || 'false').toLowerCase() === 'true'
 
 const sharedFlags = [
   '--dir', dataDir,
   '--migrationsDir', migrationsDir,
   '--hooksDir', hooksDir,
+  `--hooksWatch=${hooksWatchEnabled ? 'true' : 'false'}`,
 ]
 
 const runPocketBaseCommand = (args) => new Promise((resolve, reject) => {

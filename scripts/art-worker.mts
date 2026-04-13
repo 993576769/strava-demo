@@ -107,9 +107,11 @@ const failureBackoffMs = parseIntegerEnv('ART_WORKER_FAILURE_BACKOFF_MS', 5000)
 const idleHeartbeatMs = parseIntegerEnv('ART_WORKER_IDLE_HEARTBEAT_MS', 30000)
 const retryDelayMs = parseIntegerEnv('ART_WORKER_RETRY_DELAY_MS', 120000)
 const rateLimitRetryDelayMs = parseIntegerEnv('ART_WORKER_RATE_LIMIT_RETRY_DELAY_MS', 300000)
+const recoverRetryCount = parseIntegerEnv('ART_WORKER_RECOVER_RETRY_COUNT', 5, 1)
+const recoverRetryWaitMs = parseIntegerEnv('ART_WORKER_RECOVER_RETRY_WAIT_MS', 2000, 250)
 const maxConcurrentJobs = parseIntegerEnv('ART_WORKER_MAX_CONCURRENT_JOBS', 1, 1)
-const retryableJimengCodes = new Set(['50511', '50519', '50429', '50430'])
-const rateLimitedJimengCodes = new Set(['50429', '50430'])
+const retryableProviderCodes = new Set(['50511', '50519', '50429', '50430', '408', '409', '425', '429', '500', '502', '503', '504'])
+const rateLimitedProviderCodes = new Set(['429', '50429', '50430'])
 const workerRef = `art-worker:${os.hostname() || process.pid}:${Date.now()}`
 
 const pb = new PocketBase(pbBaseUrl)
@@ -156,17 +158,17 @@ const processArtJob = async (jobId: string) => {
   })
 }
 
-const extractJimengErrorCode = (value: unknown) => {
-  const match = String(value || '').match(/JIMENG_ERROR_CODE=(\d+)/)
+const extractProviderErrorCode = (value: unknown) => {
+  const match = String(value || '').match(/(?:JIMENG|DOUBAO)_ERROR_CODE=(\d+)/)
   return match ? match[1] : ''
 }
 
 const isRetryableError = (error: unknown) => {
-  if (hasStringMessage(error) && retryableJimengCodes.has(extractJimengErrorCode(error.message))) {
+  if (hasStringMessage(error) && retryableProviderCodes.has(extractProviderErrorCode(error.message))) {
     return true
   }
 
-  if (hasResponseMessage(error) && retryableJimengCodes.has(extractJimengErrorCode(error.response.message))) {
+  if (hasResponseMessage(error) && retryableProviderCodes.has(extractProviderErrorCode(error.response.message))) {
     return true
   }
 
@@ -177,10 +179,10 @@ const getRetryDelayForError = (error: unknown) => {
   let code = ''
 
   if (hasStringMessage(error)) {
-    code = extractJimengErrorCode(error.message)
+    code = extractProviderErrorCode(error.message)
   }
 
-  if (rateLimitedJimengCodes.has(code)) {
+  if (rateLimitedProviderCodes.has(code)) {
     return rateLimitRetryDelayMs
   }
 
@@ -222,6 +224,44 @@ const formatError = (error: unknown) => {
   return [message, originalError, response].filter(Boolean).join(' | ')
 }
 
+const waitForPocketBaseRecovery = async () => {
+  for (let attempt = 1; attempt <= recoverRetryCount; attempt += 1) {
+    const ready = await isPocketBaseReady()
+    if (ready) {
+      return {
+        recovered: true,
+        attempts: attempt,
+      }
+    }
+
+    if (attempt < recoverRetryCount) {
+      await sleep(recoverRetryWaitMs)
+    }
+  }
+
+  return {
+    recovered: false,
+    attempts: recoverRetryCount,
+  }
+}
+
+const describeRecoveryPlan = (error: unknown) => {
+  if (isRetryableError(error)) {
+    const delayMs = getRetryDelayForError(error)
+    return {
+      reason: 'retryable_error' as const,
+      retryAt: new Date(Date.now() + delayMs).toISOString(),
+      detail: `retryable provider error; scheduling retry in ${delayMs}ms`,
+    }
+  }
+
+  return {
+    reason: 'transport_failure' as const,
+    retryAt: '',
+    detail: 'non-retryable or transport-level failure; attempting immediate recovery to pending',
+  }
+}
+
 const artTaskAdapter: WorkerTaskAdapter<ClaimedJob> = {
   async claimNext() {
     const response = await claimArtJob()
@@ -244,12 +284,13 @@ const artTaskAdapter: WorkerTaskAdapter<ClaimedJob> = {
   },
 
   async recover(job, error) {
-    if (isRetryableError(error)) {
-      const delayMs = getRetryDelayForError(error)
-      return recoverArtJob(job.id, 'retryable_error', new Date(Date.now() + delayMs).toISOString())
+    const recoveryPlan = describeRecoveryPlan(error)
+
+    if (recoveryPlan.reason === 'retryable_error') {
+      return recoverArtJob(job.id, recoveryPlan.reason, recoveryPlan.retryAt)
     }
 
-    return recoverArtJob(job.id, 'transport_failure')
+    return recoverArtJob(job.id, recoveryPlan.reason)
   },
 }
 
@@ -294,6 +335,10 @@ const runLoop = async (adapter: WorkerTaskAdapter<ClaimedJob>) => {
       activeJobId = ''
     } catch (error) {
       if (activeJobId) {
+        const recoveryPlan = describeRecoveryPlan(error)
+        log(`job ${activeJobId} failed: ${formatError(error)}`)
+        log(`job ${activeJobId} recovery plan: ${recoveryPlan.detail}${recoveryPlan.retryAt ? ` (retryAt=${recoveryPlan.retryAt})` : ''}`)
+
         try {
           const recoverResult = await adapter.recover({
             id: activeJobId,
@@ -302,17 +347,49 @@ const runLoop = async (adapter: WorkerTaskAdapter<ClaimedJob>) => {
           }, error)
 
           if (recoverResult.recovered && recoverResult.reason === 'retryable_error') {
-            log(`scheduled retry for ${activeJobId}${recoverResult.scheduledRetryAt ? ` at ${recoverResult.scheduledRetryAt}` : ''}`)
+            log(`job ${activeJobId} recovered: scheduled retry${recoverResult.scheduledRetryAt ? ` at ${recoverResult.scheduledRetryAt}` : ''}`)
           }
           else if (recoverResult.recovered && recoverResult.reason === 'transport_failure') {
-            log(`recovered ${activeJobId} after transport failure`)
+            log(`job ${activeJobId} recovered: moved back to pending after transport failure`)
+          }
+          else {
+            log(`job ${activeJobId} recovery skipped by PocketBase`)
           }
         } catch (requeueError) {
-          log(`failed to recover ${activeJobId}: ${formatError(requeueError)}`)
+          log(`job ${activeJobId} recovery failed: ${formatError(requeueError)}`)
+          const pocketBaseRecovery = await waitForPocketBaseRecovery()
+
+          if (pocketBaseRecovery.recovered) {
+            log(`job ${activeJobId} retrying recovery after PocketBase became healthy on attempt ${pocketBaseRecovery.attempts}`)
+
+            try {
+              const retryRecoverResult = await adapter.recover({
+                id: activeJobId,
+                status: 'processing',
+                worker_ref: workerRef,
+              }, error)
+
+              if (retryRecoverResult.recovered && retryRecoverResult.reason === 'retryable_error') {
+                log(`job ${activeJobId} recovered after retry: scheduled retry${retryRecoverResult.scheduledRetryAt ? ` at ${retryRecoverResult.scheduledRetryAt}` : ''}`)
+              }
+              else if (retryRecoverResult.recovered && retryRecoverResult.reason === 'transport_failure') {
+                log(`job ${activeJobId} recovered after retry: moved back to pending after transport failure`)
+              }
+              else {
+                log(`job ${activeJobId} recovery retry skipped by PocketBase`)
+              }
+            } catch (retryError) {
+              log(`job ${activeJobId} recovery retry failed: ${formatError(retryError)}`)
+            }
+          }
+          else {
+            log(`job ${activeJobId} recovery retry skipped: PocketBase stayed unhealthy after ${pocketBaseRecovery.attempts} attempts`)
+          }
         }
       }
-
-      log(formatError(error))
+      else {
+        log(`worker loop error without active job: ${formatError(error)}`)
+      }
       activeJobId = ''
       await sleep(failureBackoffMs)
     }

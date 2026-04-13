@@ -28,12 +28,21 @@ module.exports = {
     }
 
     var envProvider = String($os.getenv("ART_RENDER_PROVIDER") || "").trim().toLowerCase()
-    if (envProvider === "mock" || envProvider === "jimeng46") {
-      return envProvider
+    if (envProvider === "mock" || envProvider === "jimeng46" || envProvider === "doubao-seedream" || envProvider === "doubao") {
+      return envProvider === "doubao" ? "doubao-seedream" : envProvider
     }
 
     var jimeng = require(__hooks + "/jimeng.js")
-    return jimeng.isConfigured() ? "jimeng46" : "mock"
+    var doubao = require(__hooks + "/doubao.js")
+    if (jimeng.isConfigured()) {
+      return "jimeng46"
+    }
+
+    if (doubao.isConfigured()) {
+      return "doubao-seedream"
+    }
+
+    return "mock"
   },
 
   getExistingResult: function (app, userId, jobId) {
@@ -478,6 +487,44 @@ module.exports = {
     }
   },
 
+  buildDoubaoAssets: function (jobRecord, activityRecord, stylePreset, renderOptions) {
+    var doubao = require(__hooks + "/doubao.js")
+    var routeBaseImageUrl = jobRecord.getString("route_base_image_url")
+    if (!routeBaseImageUrl) {
+      throw new BadRequestError("Missing route base image URL")
+    }
+
+    var renderResult = doubao.render(activityRecord, stylePreset, renderOptions, routeBaseImageUrl)
+    var size = this.getCanvasSize(renderOptions.aspectRatio)
+    var title = activityRecord.getString("name") || "Untitled activity"
+    var subtitle = this.buildSubtitle(activityRecord)
+    var persistedImage = this.persistJimengImageAsset(jobRecord, activityRecord, stylePreset, renderResult.imageAsset)
+
+    return {
+      imageDataUri: persistedImage.imageDataUri,
+      thumbnailDataUri: persistedImage.thumbnailDataUri,
+      width: size.width,
+      height: size.height,
+      fileSize: persistedImage.fileSize,
+      mimeType: persistedImage.mimeType,
+      title: title,
+      subtitle: subtitle,
+      metadata: {
+        renderer: "doubao-seedream-5.0",
+        provider: "doubao-seedream",
+        model: renderResult.model,
+        aspectRatio: renderOptions.aspectRatio,
+        includeTitle: renderOptions.includeTitle,
+        includeStats: renderOptions.includeStats,
+        routeBaseImageUrl: routeBaseImageUrl,
+        sourceImageUrl: renderResult.sourceImageUrl,
+        outputKind: renderResult.imageAsset.kind,
+        imageUrl: persistedImage.imageDataUri,
+        rawResult: this.sanitizeMetadataValue(renderResult.rawResult, 0),
+      },
+    }
+  },
+
   buildMockAssets: function (activityRecord, streamRecord, stylePreset, renderOptions) {
     var mockArt = require(__hooks + "/mock-art.js")
     var assets = mockArt.buildMockAssets(activityRecord, streamRecord, stylePreset, renderOptions)
@@ -506,7 +553,11 @@ module.exports = {
     var provider = this.getRequestedProvider(options && options.forceProvider)
     var workerRef = options && options.workerRef
       ? options.workerRef
-      : provider === "jimeng46" ? "jimeng-4.6" : "mock-svg-renderer:v1"
+      : provider === "jimeng46"
+        ? "jimeng-4.6"
+        : provider === "doubao-seedream"
+          ? "doubao-seedream-5.0"
+          : "mock-svg-renderer:v1"
 
     if (options && options.requireClaimedWorker) {
       this.assertProcessingClaim(context.job, workerRef)
@@ -517,7 +568,9 @@ module.exports = {
     try {
       var assets = provider === "jimeng46"
         ? this.buildJimengAssets(context.job, context.activity, stylePreset, renderOptions)
-        : this.buildMockAssets(context.activity, context.stream, stylePreset, renderOptions)
+        : provider === "doubao-seedream"
+          ? this.buildDoubaoAssets(context.job, context.activity, stylePreset, renderOptions)
+          : this.buildMockAssets(context.activity, context.stream, stylePreset, renderOptions)
 
       var resultRecord = this.createResultRecord(app, {
         jobId: context.job.id,
@@ -544,7 +597,16 @@ module.exports = {
         provider: provider,
       }
     } catch (err) {
-      this.markJobFailed(app, context.job, provider === "jimeng46" ? "jimeng_render_failed" : "mock_render_failed", err)
+      this.markJobFailed(
+        app,
+        context.job,
+        provider === "jimeng46"
+          ? "jimeng_render_failed"
+          : provider === "doubao-seedream"
+            ? "doubao_render_failed"
+            : "mock_render_failed",
+        err
+      )
       throw err
     }
   },
