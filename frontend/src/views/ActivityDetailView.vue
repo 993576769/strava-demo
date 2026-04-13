@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
 import ActivityRouteMap from '@/components/ActivityRouteMap.vue'
 import { artPresetDefinitions, aspectRatioDefinitions, type AspectRatio, type StylePreset } from '@/lib/art-presets'
+import { cn } from '@/lib/utils'
 import { useActivitiesStore } from '@/stores/activities'
 import { useActivityStreamsStore } from '@/stores/activity-streams'
 import { useArtJobsStore } from '@/stores/art-jobs'
@@ -114,6 +115,16 @@ const getAspectRatioLabel = (value: unknown) => {
   return typeof ratio === 'string' && ratio.length > 0 ? ratio : 'portrait'
 }
 
+const activityGeneratableClass = (isGeneratable: boolean) => cn(
+  isGeneratable ? 'bg-emerald-500/12 text-emerald-600' : 'bg-amber-500/12 text-amber-600',
+)
+
+const selectableCardClass = (selected: boolean, selectedClass: string) => cn(
+  selected
+    ? selectedClass
+    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55',
+)
+
 const jobStatusLabel = (status: string) => {
   switch (status) {
     case 'pending':
@@ -128,6 +139,17 @@ const jobStatusLabel = (status: string) => {
       return '已取消'
     default:
       return status
+  }
+}
+
+const jobStatusClass = (status: string) => {
+  switch (status) {
+    case 'succeeded':
+      return cn('bg-emerald-500/12 text-emerald-600')
+    case 'failed':
+      return cn('bg-red-500/12 text-red-500')
+    default:
+      return cn('bg-primary/10 text-primary')
   }
 }
 
@@ -273,7 +295,7 @@ onUnmounted(() => {
             </span>
             <span
               class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-              :class="activity.is_generatable ? 'bg-emerald-500/12 text-emerald-600' : 'bg-amber-500/12 text-amber-600'"
+              :class="activityGeneratableClass(activity.is_generatable)"
             >
               {{ activity.is_generatable ? '可生成' : '暂不可生成' }}
             </span>
@@ -348,14 +370,12 @@ onUnmounted(() => {
                   :key="preset.id"
                   type="button"
                   class="rounded-2xl border p-4 text-left transition"
-                  :class="selectedPreset === preset.id
-                    ? 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]'
-                    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55'"
+                  :class="selectableCardClass(selectedPreset === preset.id, 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]')"
                   @click="selectedPreset = preset.id"
                 >
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-sm font-semibold text-[var(--color-text)]">{{ preset.label }}</span>
-                    <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="preset.accentClass">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="cn(preset.accentClass)">
                       {{ preset.id }}
                     </span>
                   </div>
@@ -369,9 +389,7 @@ onUnmounted(() => {
                   :key="ratio.id"
                   type="button"
                   class="rounded-2xl border p-4 text-left transition"
-                  :class="selectedAspectRatio === ratio.id
-                    ? 'border-primary bg-primary/8'
-                    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55'"
+                  :class="selectableCardClass(selectedAspectRatio === ratio.id, 'border-primary bg-primary/8')"
                   @click="selectedAspectRatio = ratio.id"
                 >
                   <p class="text-sm font-semibold text-[var(--color-text)]">{{ ratio.label }}</p>
@@ -451,11 +469,7 @@ onUnmounted(() => {
                         <span class="text-sm font-semibold text-[var(--color-text)]">{{ job.style_preset }}</span>
                         <span
                           class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-                          :class="job.status === 'succeeded'
-                            ? 'bg-emerald-500/12 text-emerald-600'
-                            : job.status === 'failed'
-                              ? 'bg-red-500/12 text-red-500'
-                              : 'bg-primary/10 text-primary'"
+                          :class="jobStatusClass(job.status)"
                         >
                           {{ jobStatusLabel(job.status) }}
                         </span>

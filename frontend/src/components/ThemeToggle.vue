@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthStore } from '@/stores/auth'
 import type { Theme } from '@/types/pocketbase'
@@ -32,16 +33,18 @@ const setTheme = async (theme: Theme) => {
     await authStore.updateTheme(theme)
   }
 }
+
+const themeOptionClass = (theme: Theme) => cn(
+  themeStore.theme === theme
+    ? 'text-primary bg-primary/10'
+    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]',
+)
 </script>
 
 <template>
   <div class="relative group">
     <button
-      class="p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 cursor-pointer min-h-[40px] sm:min-h-0 min-w-[40px] sm:min-w-0 flex items-center justify-center"
-      :class="[
-        'bg-[var(--color-surface-elevated)] border border-[var(--color-border)]',
-        'hover:border-primary hover:bg-primary/10'
-      ]"
+      class="p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 cursor-pointer min-h-[40px] sm:min-h-0 min-w-[40px] sm:min-w-0 flex items-center justify-center bg-[var(--color-surface-elevated)] border border-[var(--color-border)] hover:border-primary hover:bg-primary/10"
       :title="themeOptions.find(o => o.value === themeStore.theme)?.label"
     >
       <component :is="currentIcon" class="w-4 h-4 sm:w-5 sm:h-5 text-[var(--color-text-muted)] group-hover:text-primary transition-colors" />
@@ -53,9 +56,7 @@ const setTheme = async (theme: Theme) => {
         v-for="option in themeOptions"
         :key="option.value"
         class="w-full px-3.5 sm:px-4 py-2.5 sm:py-2.5 text-sm flex items-center gap-2.5 sm:gap-3 transition-all duration-200 cursor-pointer"
-        :class="themeStore.theme === option.value
-          ? 'text-primary bg-primary/10'
-          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]'"
+        :class="themeOptionClass(option.value)"
         @click="setTheme(option.value)"
       >
         <component :is="option.icon" class="w-4 h-4" />

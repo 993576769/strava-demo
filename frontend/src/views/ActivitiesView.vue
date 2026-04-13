@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Antenna, ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
+import { cn } from '@/lib/utils'
 import { useActivitiesStore } from '@/stores/activities'
 import { useStravaStore } from '@/stores/strava'
 import { useSyncEventsStore } from '@/stores/sync-events'
@@ -64,15 +65,25 @@ const formatDistance = (meters: number) => {
 const eventToneClass = (status: string) => {
   switch (status) {
     case 'success':
-      return 'bg-emerald-500/12 text-emerald-600'
+      return cn('bg-emerald-500/12 text-emerald-600')
     case 'warning':
-      return 'bg-amber-500/12 text-amber-600'
+      return cn('bg-amber-500/12 text-amber-600')
     case 'error':
-      return 'bg-red-500/12 text-red-500'
+      return cn('bg-red-500/12 text-red-500')
     default:
-      return 'bg-slate-500/12 text-slate-600'
+      return cn('bg-slate-500/12 text-slate-600')
   }
 }
+
+const stravaNoticeClass = (tone: 'success' | 'warning') => cn(
+  tone === 'success'
+    ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-700'
+    : 'border border-amber-500/20 bg-amber-500/10 text-amber-700',
+)
+
+const activityGeneratableClass = (isGeneratable: boolean) => cn(
+  isGeneratable ? 'bg-emerald-500/12 text-emerald-600' : 'bg-amber-500/12 text-amber-600',
+)
 
 const eventStatusLabel = (status: string) => {
   switch (status) {
@@ -220,9 +231,7 @@ onMounted(async () => {
         <div
           v-if="stravaNotice"
           class="rounded-2xl px-4 py-4"
-          :class="stravaNotice.tone === 'success'
-            ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-700'
-            : 'border border-amber-500/20 bg-amber-500/10 text-amber-700'"
+          :class="stravaNoticeClass(stravaNotice.tone)"
         >
           <div class="flex items-start gap-3">
             <CheckCircle2 v-if="stravaNotice.tone === 'success'" class="w-5 h-5 mt-0.5 shrink-0" />
@@ -292,7 +301,7 @@ onMounted(async () => {
                   </span>
                   <span
                     class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-                    :class="activity.is_generatable ? 'bg-emerald-500/12 text-emerald-600' : 'bg-amber-500/12 text-amber-600'"
+                    :class="activityGeneratableClass(activity.is_generatable)"
                   >
                     {{ activity.is_generatable ? '可生成' : '暂不可生成' }}
                   </span>

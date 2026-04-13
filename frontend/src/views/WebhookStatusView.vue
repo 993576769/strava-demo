@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, CheckCircle2, Link2, RefreshCw, ShieldCheck, TriangleAlert, Unplug } from 'lucide-vue-next'
+import { cn } from '@/lib/utils'
 import { useStravaStore } from '@/stores/strava'
 import { useSyncEventsStore } from '@/stores/sync-events'
 
@@ -51,13 +52,13 @@ const formatDateTime = (value: string) => {
 const eventToneClass = (status: string) => {
   switch (status) {
     case 'success':
-      return 'bg-emerald-500/12 text-emerald-600'
+      return cn('bg-emerald-500/12 text-emerald-600')
     case 'warning':
-      return 'bg-amber-500/12 text-amber-600'
+      return cn('bg-amber-500/12 text-amber-600')
     case 'error':
-      return 'bg-red-500/12 text-red-500'
+      return cn('bg-red-500/12 text-red-500')
     default:
-      return 'bg-slate-500/12 text-slate-600'
+      return cn('bg-slate-500/12 text-slate-600')
   }
 }
 
