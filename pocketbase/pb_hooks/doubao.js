@@ -65,19 +65,14 @@ module.exports = {
     return message
   },
 
-  buildPrompt: function (activityRecord, stylePreset, renderOptions) {
+  buildPrompt: function (activityRecord, templateKey, renderOptions) {
     var art = require(__hooks + "/art.js")
     var sportType = activityRecord.getString("sport_type") || "户外运动"
     var title = activityRecord.getString("name") || "Untitled activity"
     var distanceMeters = activityRecord.getFloat("distance_meters") || 0
     var distanceKm = distanceMeters > 0 ? (distanceMeters / 1000).toFixed(1) + " 公里" : "未知距离"
     var startDate = activityRecord.getString("start_date") || ""
-
-    var stylePromptMap = {
-      sketch: "手绘速写，细腻线稿，纸张肌理，克制配色，保留主路径的清晰识别度",
-      watercolor: "水彩晕染，柔和色块，纸张肌理，轻盈氛围，保留主路径的清晰识别度",
-      poster: "艺术海报构图，强烈视觉冲击，版式感，电影级光影，保留主路径的清晰识别度",
-    }
+    var templateConfig = art.getPromptTemplateConfig("doubao-seedream", templateKey)
 
     var ratioPromptMap = {
       portrait: "竖版海报构图",
@@ -90,9 +85,8 @@ module.exports = {
       : "不要出现任何文字、logo 或界面元素。"
 
     return art.renderPromptTemplate(
-      art.getPromptTemplateConfig("doubao-seedream").promptTemplate,
+      templateConfig.promptTemplate,
       {
-        style_prompt: stylePromptMap[stylePreset] || stylePromptMap.sketch,
         ratio_prompt: ratioPromptMap[renderOptions.aspectRatio] || ratioPromptMap.portrait,
         title_instruction: titleInstruction,
         title: title,
@@ -126,10 +120,11 @@ module.exports = {
     throw new BadRequestError("Doubao response does not contain a usable image asset")
   },
 
-  render: function (activityRecord, stylePreset, renderOptions, routeBaseImageUrl) {
+  render: function (activityRecord, templateKey, renderOptions, routeBaseImageUrl) {
     var config = this.getConfig()
     var art = require(__hooks + "/art.js")
-    var referenceImageUrl = art.getTemplateReferenceImageUrl("doubao-seedream")
+    var templateConfig = art.getPromptTemplateConfig("doubao-seedream", templateKey)
+    var referenceImageUrl = templateConfig.referenceImageUrl || ""
     var inputImages = [routeBaseImageUrl]
     if (!routeBaseImageUrl) {
       throw new BadRequestError("Missing route base image URL for Doubao image-to-image render")
@@ -141,7 +136,7 @@ module.exports = {
 
     var requestBody = {
       model: config.model,
-      prompt: this.buildPrompt(activityRecord, stylePreset, renderOptions),
+      prompt: this.buildPrompt(activityRecord, templateKey, renderOptions),
       size: config.size,
       outputFormat: config.outputFormat,
       responseFormat: config.responseFormat,

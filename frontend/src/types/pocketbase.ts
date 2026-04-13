@@ -2,6 +2,8 @@ import type {
   ActivitiesResponse,
   ActivityStreamsResponse,
   ArtJobsResponse,
+  ArtPromptTemplatesProviderOptions,
+  ArtPromptTemplatesResponse,
   ArtResultsResponse,
   StravaConnectionsResponse,
   SyncEventsResponse,
@@ -10,11 +12,8 @@ import type {
   UserUpdate,
   UsersResponse,
 } from './pocketbase.generated'
-import {
-  UsersThemeOptions,
-} from './pocketbase.generated'
 
-export type Theme = `${UsersThemeOptions}`
+export type Theme = 'light' | 'dark' | 'system'
 export type StravaConnectionStatus = 'active' | 'expired' | 'revoked' | 'reauthorization_required'
 export type ActivityVisibility = 'public' | 'followers_only' | 'only_me' | 'unknown'
 export type ActivitySyncStatus = 'pending_detail' | 'ready' | 'partial' | 'failed'
@@ -22,15 +21,14 @@ export type ArtJobStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | '
 export type ArtResultVisibility = 'private' | 'unlisted' | 'public'
 export type SyncEventCategory = 'sync' | 'webhook' | 'connection'
 export type SyncEventStatus = 'info' | 'success' | 'warning' | 'error'
-export type UserUpdateInput = Omit<UserUpdate, 'theme'> & {
-  theme?: Theme
-}
 
 export type User = UsersResponse
 export type StravaConnection = StravaConnectionsResponse<{ user?: UsersResponse }>
 export type Activity = ActivitiesResponse<{ user?: UsersResponse; connection?: StravaConnectionsResponse }>
 export type ActivityStream = ActivityStreamsResponse<{ activity?: ActivitiesResponse }>
 export type ArtJob = ArtJobsResponse<{ activity?: ActivitiesResponse; stream?: ActivityStreamsResponse; user?: UsersResponse }>
+export type ArtPromptTemplateProvider = `${ArtPromptTemplatesProviderOptions}`
+export type ArtPromptTemplate = ArtPromptTemplatesResponse
 export type ArtResult = ArtResultsResponse<{ activity?: ActivitiesResponse; job?: ArtJobsResponse; user?: UsersResponse }>
 export type SyncEvent = SyncEventsResponse<{ user?: UsersResponse }>
 
@@ -162,6 +160,19 @@ export const isArtJob = (value: unknown): value is ArtJob => {
   )
 }
 
+export const isArtPromptTemplate = (value: unknown): value is ArtPromptTemplate => {
+  if (typeof value !== 'object' || value === null) return false
+
+  return (
+    'collectionName' in value &&
+    value.collectionName === 'art_prompt_templates' &&
+    'id' in value &&
+    'template_key' in value &&
+    'provider' in value &&
+    'prompt_template' in value
+  )
+}
+
 export const isArtResult = (value: unknown): value is ArtResult => {
   if (typeof value !== 'object' || value === null) return false
 
@@ -186,19 +197,4 @@ export const isSyncEvent = (value: unknown): value is SyncEvent => {
     'status' in value &&
     'title' in value
   )
-}
-
-export function toUserThemeOption(theme: Theme): UsersThemeOptions
-export function toUserThemeOption(theme?: Theme): UsersThemeOptions | undefined
-export function toUserThemeOption(theme?: Theme): UsersThemeOptions | undefined {
-  switch (theme) {
-    case 'light':
-      return UsersThemeOptions.Light
-    case 'dark':
-      return UsersThemeOptions.Dark
-    case 'system':
-      return UsersThemeOptions.System
-    default:
-      return undefined
-  }
 }

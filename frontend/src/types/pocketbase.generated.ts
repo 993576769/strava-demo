@@ -41,21 +41,15 @@ export type AuthSystemFields<T = unknown> = {
   verified: boolean
 } & BaseSystemFields<T>
 
-export enum UsersThemeOptions {
-  Light = 'light',
-  Dark = 'dark',
-  System = 'system',
-}
-
 export type UsersRecord = {
   avatar?: string
   created?: IsoDateString
   email: string
   emailVisibility?: boolean
   id: string
+  is_active?: boolean
   name?: string
   password: string
-  theme?: UsersThemeOptions
   tokenKey: string
   updated?: IsoDateString
   verified?: boolean
@@ -286,7 +280,7 @@ export type UserCreate = Pick<UsersRecord, 'email' | 'password'> & {
 
 export type UserUpdate = {
   name?: string
-  theme?: UsersThemeOptions
+  is_active?: boolean
 }
 
 export type TypedPocketBase = PocketBase & {

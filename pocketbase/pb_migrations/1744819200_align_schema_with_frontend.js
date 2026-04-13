@@ -10,6 +10,21 @@ const hasField = (collection, fieldName) => {
 migrate((app) => {
   const users = app.findCollectionByNameOrId("users")
 
+  if (!hasField(users, "is_active")) {
+    users.fields.add(
+      new BoolField({
+        name: "is_active",
+      }),
+    )
+  }
+
+  if (hasField(users, "theme")) {
+    users.fields.removeByName("theme")
+  }
+
+  return app.save(users)
+}, (app) => {
+  const users = app.findCollectionByNameOrId("users")
   if (!hasField(users, "theme")) {
     users.fields.add(
       new SelectField({
@@ -20,11 +35,8 @@ migrate((app) => {
     )
   }
 
-  return app.save(users)
-}, (app) => {
-  const users = app.findCollectionByNameOrId("users")
-  if (hasField(users, "theme")) {
-    users.fields.removeByName("theme")
+  if (hasField(users, "is_active")) {
+    users.fields.removeByName("is_active")
   }
 
   return app.save(users)

@@ -506,7 +506,7 @@ module.exports = {
     this.ensureRouteBaseReady(context.job)
 
     var renderOptions = art.normalizeRenderOptions(context.job.getRaw("render_options_json"))
-    var stylePreset = art.normalizeStylePreset(context.job.getString("style_preset"))
+    var stylePreset = art.normalizeTemplateKey(context.job.getString("style_preset"), "doubao-seedream")
     var provider = this.getRequestedProvider(options && options.forceProvider)
     var workerRef = options && options.workerRef
       ? options.workerRef

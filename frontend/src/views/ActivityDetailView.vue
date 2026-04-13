@@ -3,12 +3,15 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
 import ActivityRouteMap from '@/components/ActivityRouteMap.vue'
-import { artPresetDefinitions, aspectRatioDefinitions, type AspectRatio, type StylePreset } from '@/lib/art-presets'
+import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
+import { aspectRatioDefinitions, type AspectRatio } from '@/lib/art-presets'
 import { cn } from '@/lib/utils'
 import { useActivitiesStore } from '@/stores/activities'
 import { useActivityStreamsStore } from '@/stores/activity-streams'
 import { useArtJobsStore } from '@/stores/art-jobs'
+import { useArtPromptTemplatesStore } from '@/stores/art-prompt-templates'
 import { useArtResultsStore } from '@/stores/art-results'
+import { useAuthStore } from '@/stores/auth'
 
 type ActivityRouteMapExpose = {
   exportPngDataUrl: () => Promise<string | null>
@@ -19,12 +22,14 @@ const router = useRouter()
 const activitiesStore = useActivitiesStore()
 const activityStreamsStore = useActivityStreamsStore()
 const artJobsStore = useArtJobsStore()
+const artPromptTemplatesStore = useArtPromptTemplatesStore()
 const artResultsStore = useArtResultsStore()
+const authStore = useAuthStore()
 const routeMapRef = ref<ActivityRouteMapExpose | null>(null)
 
 const activityId = computed(() => String(route.params.id ?? ''))
 const activity = computed(() => activitiesStore.currentActivity)
-const selectedPreset = ref<StylePreset>('sketch')
+const selectedTemplateKey = ref('')
 const selectedAspectRatio = ref<AspectRatio>('portrait')
 const includeTitle = ref(true)
 const createFeedback = ref('')
@@ -171,6 +176,7 @@ const loadPage = async () => {
       activitiesStore.fetchActivityById(activityId.value),
       activityStreamsStore.fetchStreamForActivity(activityId.value),
       artJobsStore.fetchJobsForActivity(activityId.value),
+      artPromptTemplatesStore.fetchTemplates(),
       artResultsStore.fetchResultsForActivity(activityId.value),
     ])
   }
@@ -207,7 +213,7 @@ const createArtJob = async () => {
 
   const job = await artJobsStore.createJob({
     activityId: activity.value.id,
-    stylePreset: selectedPreset.value,
+    templateKey: selectedTemplateKey.value || artPromptTemplatesStore.defaultTemplateKey,
     aspectRatio: selectedAspectRatio.value,
     includeTitle: includeTitle.value,
   })
@@ -261,6 +267,12 @@ watch(activityId, () => {
   void loadPage()
 }, { immediate: true })
 
+watch(() => artPromptTemplatesStore.defaultTemplateKey, (defaultTemplateKey) => {
+  if (!selectedTemplateKey.value && defaultTemplateKey) {
+    selectedTemplateKey.value = defaultTemplateKey
+  }
+}, { immediate: true })
+
 watch(() => artJobsStore.activeJob?.id, (activeJobId) => {
   if (activeJobId) {
     ensureQueuePolling()
@@ -275,6 +287,7 @@ onUnmounted(() => {
   activitiesStore.clearCurrentActivity()
   activityStreamsStore.clear()
   artJobsStore.clear()
+  artPromptTemplatesStore.clear()
   artResultsStore.clear()
 })
 </script>
@@ -376,22 +389,34 @@ onUnmounted(() => {
                   现在会优先走真实渲染入口；如果本地还没有配置 Doubao Seedream 5.0 的必要参数，则会自动回退到 mock 渲染器。
                 </p>
 
-              <div class="mt-5 grid gap-3 md:grid-cols-3">
+              <div v-if="artPromptTemplatesStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                正在读取模板选项...
+              </div>
+
+              <div v-else-if="artPromptTemplatesStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+                {{ artPromptTemplatesStore.error }}
+              </div>
+
+              <div v-else-if="artPromptTemplatesStore.options.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
+                当前还没有可用生成模板，先在 `art_prompt_templates` 里 seed 一条已激活模板后再生成。
+              </div>
+
+              <div v-if="artPromptTemplatesStore.options.length > 0" class="mt-5 grid gap-3 md:grid-cols-3">
                 <button
-                  v-for="preset in artPresetDefinitions"
-                  :key="preset.id"
+                  v-for="template in artPromptTemplatesStore.options"
+                  :key="template.id"
                   type="button"
                   class="rounded-2xl border p-4 text-left transition"
-                  :class="selectableCardClass(selectedPreset === preset.id, 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]')"
-                  @click="selectedPreset = preset.id"
+                  :class="selectableCardClass(selectedTemplateKey === template.id, 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]')"
+                  @click="selectedTemplateKey = template.id"
                 >
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-sm font-semibold text-[var(--color-text)]">{{ preset.label }}</span>
-                    <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="cn(preset.accentClass)">
-                      {{ preset.id }}
+                    <span class="text-sm font-semibold text-[var(--color-text)]">{{ template.label }}</span>
+                    <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="cn(template.accentClass)">
+                      {{ template.id }}
                     </span>
                   </div>
-                  <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">{{ preset.description }}</p>
+                  <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">{{ template.description }}</p>
                 </button>
               </div>
 
@@ -418,6 +443,10 @@ onUnmounted(() => {
                 {{ createFeedback }}
               </div>
 
+              <div v-if="authStore.isLoggedIn && !authStore.isActive" class="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+                当前账号尚未激活，暂时不能提交生成任务。请先由管理员手动激活账号。
+              </div>
+
               <div v-if="artJobsStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
                 {{ artJobsStore.error }}
               </div>
@@ -429,7 +458,7 @@ onUnmounted(() => {
               <div class="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   class="btn btn-primary"
-                  :disabled="!activity.is_generatable || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
+                  :disabled="!activity.is_generatable || !authStore.isActive || !selectedTemplateKey || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
                   @click="createArtJob"
                 >
                   <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="w-4 h-4 mr-2 animate-spin" />
@@ -478,7 +507,7 @@ onUnmounted(() => {
                   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                       <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm font-semibold text-[var(--color-text)]">{{ job.style_preset }}</span>
+                        <span class="text-sm font-semibold text-[var(--color-text)]">{{ formatArtPromptTemplateLabel(job.style_preset) }}</span>
                         <span
                           class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
                           :class="jobStatusClass(job.status)"
@@ -549,7 +578,7 @@ onUnmounted(() => {
                       </p>
                     </div>
                     <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {{ result.style_preset }}
+                      {{ formatArtPromptTemplateLabel(result.style_preset) }}
                     </span>
                   </div>
 

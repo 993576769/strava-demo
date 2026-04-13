@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { artJobsCollection, pb } from '@/lib/pocketbase'
-import type { AspectRatio, StylePreset } from '@/lib/art-presets'
+import type { AspectRatio } from '@/lib/art-presets'
 import { isArtJob, type ArtJob } from '@/types/pocketbase'
 
 type CreateArtJobResponse = {
@@ -49,7 +49,7 @@ export const useArtJobsStore = defineStore('artJobs', () => {
 
   const createJob = async (params: {
     activityId: string
-    stylePreset: StylePreset
+    templateKey: string
     aspectRatio: AspectRatio
     includeTitle: boolean
   }) => {
@@ -65,7 +65,7 @@ export const useArtJobsStore = defineStore('artJobs', () => {
         },
         body: {
           activityId: params.activityId,
-          stylePreset: params.stylePreset,
+          templateKey: params.templateKey,
           renderOptions: {
             aspectRatio: params.aspectRatio,
             includeTitle: params.includeTitle,

@@ -109,7 +109,7 @@ const disconnectStrava = async () => {
             </div>
             <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
               <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">风格</p>
-              <p class="mt-2 text-sm font-medium text-[var(--color-text)]">首版默认 `sketch`</p>
+              <p class="mt-2 text-sm font-medium text-[var(--color-text)]">来自 `art_prompt_templates` 的模板选项</p>
             </div>
           </div>
         </div>

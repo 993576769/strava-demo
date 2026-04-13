@@ -2,6 +2,7 @@
 import { computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Download, Image as ImageIcon, Sparkles } from 'lucide-vue-next'
+import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
 import { useArtResultsStore } from '@/stores/art-results'
 
 const route = useRoute()
@@ -35,7 +36,7 @@ const downloadImage = () => {
   const link = document.createElement('a')
   link.href = result.value.image_data_uri
   const extension = result.value.mime_type === 'image/svg+xml' ? 'svg' : 'png'
-  link.download = `${result.value.style_preset}-${result.value.id}.${extension}`
+  link.download = `${formatArtPromptTemplateLabel(result.value.style_preset)}-${result.value.id}.${extension}`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)

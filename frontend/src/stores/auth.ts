@@ -2,8 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { RecordService } from 'pocketbase'
 import { pb, usersCollection } from '@/lib/pocketbase'
-import { useThemeStore } from '@/stores/theme'
-import { isUser, toUserThemeOption, type Theme, type User, type UserCreate, type UserUpdate } from '@/types/pocketbase'
+import { isUser, type User, type UserCreate, type UserUpdate } from '@/types/pocketbase'
 
 const toUserRecord = (value: unknown): User | null => {
   return isUser(value) ? value : null
@@ -11,11 +10,6 @@ const toUserRecord = (value: unknown): User | null => {
 
 type OAuthRecordService = RecordService<User> & {
   authWithOAuth2: (options: { provider: string }) => Promise<{ record?: unknown; meta?: Record<string, unknown> }>
-}
-
-const syncThemeFromUser = (user: User | null) => {
-  const themeStore = useThemeStore()
-  themeStore.initFromUser(user?.theme)
 }
 
 const usernameAdjectives = [
@@ -97,22 +91,20 @@ export const useAuthStore = defineStore('auth', () => {
 
     const updated = await usersCollection().update(candidate.id, payload)
     user.value = toUserRecord(updated)
-    syncThemeFromUser(user.value)
     return user.value
   }
 
   if (pb.authStore.isValid && pb.authStore.record) {
     user.value = toUserRecord(pb.authStore.record)
-    syncThemeFromUser(user.value)
     void ensureUsername(user.value)
   }
 
   const isLoggedIn = computed(() => !!user.value && pb.authStore.isValid)
+  const isActive = computed(() => user.value?.is_active === true)
   const displayName = computed(() => user.value?.name || user.value?.email || '运动用户')
 
   pb.authStore.onChange((_token, model) => {
     user.value = toUserRecord(model)
-    syncThemeFromUser(user.value)
     void ensureUsername(user.value)
   })
 
@@ -120,7 +112,6 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (email: string, password: string) => {
     const auth = await usersCollection().authWithPassword(email, password)
     user.value = toUserRecord(auth.record)
-    syncThemeFromUser(user.value)
     await ensureUsername(user.value)
     return auth
   }
@@ -143,7 +134,6 @@ export const useAuthStore = defineStore('auth', () => {
     const collection = usersCollection() as OAuthRecordService
     const auth = await collection.authWithOAuth2({ provider: 'github' })
     user.value = toUserRecord(auth.record ?? pb.authStore.record)
-    syncThemeFromUser(user.value)
     await ensureUsername(user.value, auth.meta)
     return auth
   }
@@ -157,7 +147,6 @@ export const useAuthStore = defineStore('auth', () => {
     if (!pb.authStore.isValid) return
     const fresh = await usersCollection().authRefresh()
     user.value = toUserRecord(fresh.record)
-    syncThemeFromUser(user.value)
     await ensureUsername(user.value)
   }
 
@@ -166,15 +155,10 @@ export const useAuthStore = defineStore('auth', () => {
     return pb.files.getURL(user.value, user.value.avatar)
   }
 
-  const updateTheme = async (theme: Theme) => {
-    if (!user.value) return
-    const payload: UserUpdate = { theme: toUserThemeOption(theme) }
-    await usersCollection().update(user.value.id, payload)
-  }
-
   return {
     user,
     isLoggedIn,
+    isActive,
     displayName,
     login,
     register,
@@ -182,6 +166,5 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refresh,
     getAvatarUrl,
-    updateTheme,
   }
 })

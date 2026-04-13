@@ -22,7 +22,6 @@
     "@types/qs": "^6.15.0",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.2",
-    "openai": "^6.34.0",
     "pocketbase": "0.26.8",
     "pocketbase-typegen": "^1.3.3",
     "qs": "^6.15.1",

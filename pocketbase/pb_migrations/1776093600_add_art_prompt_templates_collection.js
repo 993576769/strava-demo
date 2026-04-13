@@ -17,6 +17,8 @@ migrate((app) => {
     artPromptTemplates = new Collection({
       name: "art_prompt_templates",
       type: "base",
+      listRule: "@request.auth.id != ''",
+      viewRule: "@request.auth.id != ''",
       fields: [
         {
           name: "template_key",

@@ -43,10 +43,8 @@ migrate((app) => {
           mimeTypes: ["image/jpeg", "image/png", "image/gif", "image/webp"],
         },
         {
-          name: "theme",
-          type: "select",
-          maxSelect: 1,
-          values: ["light", "dark", "system"],
+          name: "is_active",
+          type: "bool",
         },
       ],
     })

@@ -2,12 +2,10 @@
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/stores/theme'
-import { useAuthStore } from '@/stores/auth'
 import type { Theme } from '@/types/pocketbase'
 import { Sun, Moon, Monitor } from 'lucide-vue-next'
 
 const themeStore = useThemeStore()
-const authStore = useAuthStore()
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
   { value: 'system', icon: Monitor, label: '跟随系统' },
@@ -26,12 +24,8 @@ const currentIcon = computed(() => {
   }
 })
 
-const setTheme = async (theme: Theme) => {
+const setTheme = (theme: Theme) => {
   themeStore.setTheme(theme)
-  // Sync with PocketBase if logged in
-  if (authStore.isLoggedIn) {
-    await authStore.updateTheme(theme)
-  }
 }
 
 const themeOptionClass = (theme: Theme) => cn(

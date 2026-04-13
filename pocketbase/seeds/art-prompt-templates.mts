@@ -27,7 +27,7 @@ export const artPromptTemplateSeeds: ArtPromptTemplateSeed[] = [
       '背景地图纹理与风格元素必须铺满整个画面，做成全幅满版背景，不要只出现在中间区域，不要留下大面积空白边缘、白边或留白框。',
       '可以在背景中少量显示地名、地点标签或地图文字，帮助识别地点，但必须简洁克制，不要遮挡路线，不要变成真实地图截图。',
       '禁止人物、车辆、应用 UI、品牌标识、水印和多余文字。',
-      '风格：{{style_prompt}}。',
+      '风格要求：以参考图中的地图海报风格、配色、纸张肌理和整体氛围为准，同时保持路线主体的高可读性。',
       '构图：{{ratio_prompt}}。',
       '{{title_instruction}}',
       '活动信息：{{title}}，{{sport_type}}，{{distance}}，{{start_date}}。',

@@ -56,17 +56,9 @@ export const useThemeStore = defineStore('theme', () => {
     setTheme(current === 'dark' ? 'light' : 'dark')
   }
 
-  // Initialize theme from user preference (called after auth)
-  const initFromUser = (userTheme?: Theme) => {
-    if (userTheme && userTheme !== theme.value) {
-      theme.value = userTheme
-    }
-  }
-
   return {
     theme,
     setTheme,
     toggleTheme,
-    initFromUser
   }
 })
