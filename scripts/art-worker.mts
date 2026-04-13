@@ -159,7 +159,7 @@ const processArtJob = async (jobId: string) => {
 }
 
 const extractProviderErrorCode = (value: unknown) => {
-  const match = String(value || '').match(/(?:JIMENG|DOUBAO)_ERROR_CODE=(\d+)/)
+  const match = String(value || '').match(/DOUBAO_ERROR_CODE=(\d+)/)
   return match ? match[1] : ''
 }
 

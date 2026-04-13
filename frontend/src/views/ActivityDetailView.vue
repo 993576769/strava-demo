@@ -89,7 +89,6 @@ const getResultRendererLabel = (result: unknown) => {
 
   const provider = 'provider' in metadata ? metadata.provider : undefined
   if (provider === 'doubao-seedream') return 'Doubao Seedream 5.0 成品'
-  if (provider === 'jimeng46') return '即梦 4.6 成品'
 
   const renderer = 'renderer' in metadata ? metadata.renderer : undefined
   if (renderer === 'mock-svg-v1') return 'Mock 成品'
@@ -373,9 +372,9 @@ onUnmounted(() => {
             <Palette class="w-5 h-5 mt-1 text-primary shrink-0" />
             <div class="min-w-0 flex-1">
               <h2 class="text-base font-semibold text-[var(--color-text)]">生成设置</h2>
-              <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                现在会优先走真实渲染入口；如果本地还没有配置即梦 4.6 的必要参数，则会自动回退到 mock 渲染器。
-              </p>
+                <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
+                  现在会优先走真实渲染入口；如果本地还没有配置 Doubao Seedream 5.0 的必要参数，则会自动回退到 mock 渲染器。
+                </p>
 
               <div class="mt-5 grid gap-3 md:grid-cols-3">
                 <button
@@ -514,9 +513,9 @@ onUnmounted(() => {
             <Sparkles class="w-5 h-5 mt-1 text-primary shrink-0" />
             <div class="min-w-0 flex-1">
               <h2 class="text-base font-semibold text-[var(--color-text)]">生成结果</h2>
-              <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                这里会展示当前 provider 产出的结果图。已配置 `doubao-seedream-5-0-260128` 或即梦 4.6 时会优先走真实生成，否则会自动显示 mock 回退结果。
-              </p>
+                <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
+                  这里会展示当前 provider 产出的结果图。已配置 `doubao-seedream-5-0-260128` 时会优先走真实生成，否则会自动显示 mock 回退结果。
+                </p>
 
               <div v-if="artResultsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
                 正在读取结果列表...

@@ -6,6 +6,8 @@ declare interface PBApp {
   save(model: unknown): unknown
   delete(model: unknown): unknown
   findCollectionByNameOrId(nameOrId: string): PBCollection
+  findAllRecords?(collectionName: string): PBRecord[]
+  findRecordsByFilter?(collectionName: string, filter: string): PBRecord[]
 }
 
 declare interface PBCollectionOptions {
@@ -72,6 +74,13 @@ declare interface PBField {
   name: string
 }
 
+declare interface PBRecord {
+  getString(fieldName: string): string
+  getRaw(fieldName: string): unknown
+  set(fieldName: string, value: unknown): void
+  [key: string]: unknown
+}
+
 declare interface PBFieldsList {
   fieldNames(): string[]
   add(...fields: PBField[]): void
@@ -79,6 +88,11 @@ declare interface PBFieldsList {
 }
 
 declare class SelectField implements PBField {
+  constructor(config: PBFieldConfig)
+  name: string
+}
+
+declare class DateField implements PBField {
   constructor(config: PBFieldConfig)
   name: string
 }

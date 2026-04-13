@@ -16,7 +16,6 @@ const providerLabel = computed(() => {
 
   const provider = 'provider' in metadata ? metadata.provider : undefined
   if (provider === 'doubao-seedream') return 'Doubao Seedream 5.0'
-  if (provider === 'jimeng46') return '即梦 4.6'
 
   const renderer = 'renderer' in metadata ? metadata.renderer : undefined
   if (renderer === 'mock-svg-v1') return 'Mock SVG'
@@ -24,7 +23,7 @@ const providerLabel = computed(() => {
   return '生成结果'
 })
 const downloadLabel = computed(() => {
-  if (providerLabel.value === '即梦 4.6' || providerLabel.value === 'Doubao Seedream 5.0')
+  if (providerLabel.value === 'Doubao Seedream 5.0')
     return '下载结果图'
 
   return '下载 Mock SVG'
@@ -118,7 +117,7 @@ onUnmounted(() => {
               <div>
                 <h2 class="text-base font-semibold text-[var(--color-text)]">当前阶段说明</h2>
                 <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                  当前结果页会复用同一套任务与详情结构。如果后端已配置 `doubao-seedream-5-0-260128` 或即梦 4.6，这里展示的就是远端生成结果；否则会自动回退到 mock SVG。
+                  当前结果页会复用同一套任务与详情结构。如果后端已配置 `doubao-seedream-5-0-260128`，这里展示的就是远端生成结果；否则会自动回退到 mock SVG。
                 </p>
               </div>
             </div>

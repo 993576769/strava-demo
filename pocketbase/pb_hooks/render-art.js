@@ -28,16 +28,11 @@ module.exports = {
     }
 
     var envProvider = String($os.getenv("ART_RENDER_PROVIDER") || "").trim().toLowerCase()
-    if (envProvider === "mock" || envProvider === "jimeng46" || envProvider === "doubao-seedream" || envProvider === "doubao") {
+    if (envProvider === "mock" || envProvider === "doubao-seedream" || envProvider === "doubao") {
       return envProvider === "doubao" ? "doubao-seedream" : envProvider
     }
 
-    var jimeng = require(__hooks + "/jimeng.js")
     var doubao = require(__hooks + "/doubao.js")
-    if (jimeng.isConfigured()) {
-      return "jimeng46"
-    }
-
     if (doubao.isConfigured()) {
       return "doubao-seedream"
     }
@@ -173,7 +168,7 @@ module.exports = {
     return routeBase.resolveFilename(baseName, mimeType)
   },
 
-  persistJimengImageAsset: function (jobRecord, activityRecord, stylePreset, imageAsset) {
+  persistRemoteImageAsset: function (jobRecord, activityRecord, stylePreset, imageAsset) {
     if (imageAsset.kind !== "base64") {
       return {
         imageDataUri: imageAsset.value,
@@ -187,7 +182,7 @@ module.exports = {
     var mimeType = "image/png"
 
     if (routeBase.getUploadProvider() !== "s3") {
-      throw new BadRequestError("Jimeng base64 output requires ART_ASSET_UPLOAD_PROVIDER=s3")
+      throw new BadRequestError("Remote base64 output requires ART_ASSET_UPLOAD_PROVIDER=s3")
     }
 
     var uploaded = routeBase.uploadToS3(
@@ -446,48 +441,6 @@ module.exports = {
     }
   },
 
-  buildJimengAssets: function (jobRecord, activityRecord, stylePreset, renderOptions) {
-    var jimeng = require(__hooks + "/jimeng.js")
-    var routeBaseImageUrl = jobRecord.getString("route_base_image_url")
-    if (!routeBaseImageUrl) {
-      throw new BadRequestError("Missing route base image URL")
-    }
-
-    var renderResult = jimeng.render(activityRecord, stylePreset, renderOptions, routeBaseImageUrl)
-    var size = this.getCanvasSize(renderOptions.aspectRatio)
-    var title = activityRecord.getString("name") || "Untitled activity"
-    var subtitle = this.buildSubtitle(activityRecord)
-    var persistedImage = this.persistJimengImageAsset(jobRecord, activityRecord, stylePreset, renderResult.imageAsset)
-
-    return {
-      imageDataUri: persistedImage.imageDataUri,
-      thumbnailDataUri: persistedImage.thumbnailDataUri,
-      width: size.width,
-      height: size.height,
-      fileSize: persistedImage.fileSize,
-      mimeType: persistedImage.mimeType,
-      title: title,
-      subtitle: subtitle,
-      metadata: {
-        renderer: "jimeng-4.6",
-        provider: "jimeng46",
-        taskId: renderResult.taskId,
-        requestId: renderResult.requestId,
-        aspectRatio: renderOptions.aspectRatio,
-        includeTitle: renderOptions.includeTitle,
-        includeStats: renderOptions.includeStats,
-        referenceImageUrl: renderResult.referenceImageUrl,
-        routeBaseImageUrl: routeBaseImageUrl,
-        outputKind: renderResult.imageAsset.kind,
-        imageUrl: persistedImage.imageDataUri,
-        rawResult: this.sanitizeMetadataValue(
-          renderResult.rawResult && renderResult.rawResult.Result ? renderResult.rawResult.Result : renderResult.rawResult || null,
-          0
-        ),
-      },
-    }
-  },
-
   buildDoubaoAssets: function (jobRecord, activityRecord, stylePreset, renderOptions) {
     var doubao = require(__hooks + "/doubao.js")
     var routeBaseImageUrl = jobRecord.getString("route_base_image_url")
@@ -499,7 +452,7 @@ module.exports = {
     var size = this.getCanvasSize(renderOptions.aspectRatio)
     var title = activityRecord.getString("name") || "Untitled activity"
     var subtitle = this.buildSubtitle(activityRecord)
-    var persistedImage = this.persistJimengImageAsset(jobRecord, activityRecord, stylePreset, renderResult.imageAsset)
+    var persistedImage = this.persistRemoteImageAsset(jobRecord, activityRecord, stylePreset, renderResult.imageAsset)
 
     return {
       imageDataUri: persistedImage.imageDataUri,
@@ -557,9 +510,7 @@ module.exports = {
     var provider = this.getRequestedProvider(options && options.forceProvider)
     var workerRef = options && options.workerRef
       ? options.workerRef
-      : provider === "jimeng46"
-        ? "jimeng-4.6"
-        : provider === "doubao-seedream"
+      : provider === "doubao-seedream"
           ? "doubao-seedream-5.0"
           : "mock-svg-renderer:v1"
 
@@ -570,9 +521,7 @@ module.exports = {
     }
 
     try {
-      var assets = provider === "jimeng46"
-        ? this.buildJimengAssets(context.job, context.activity, stylePreset, renderOptions)
-        : provider === "doubao-seedream"
+      var assets = provider === "doubao-seedream"
           ? this.buildDoubaoAssets(context.job, context.activity, stylePreset, renderOptions)
           : this.buildMockAssets(context.activity, context.stream, stylePreset, renderOptions)
 
@@ -604,9 +553,7 @@ module.exports = {
       this.markJobFailed(
         app,
         context.job,
-        provider === "jimeng46"
-          ? "jimeng_render_failed"
-          : provider === "doubao-seedream"
+        provider === "doubao-seedream"
             ? "doubao_render_failed"
             : "mock_render_failed",
         err

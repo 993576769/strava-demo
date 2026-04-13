@@ -7,7 +7,6 @@
     "dev": "pnpm run dev:all",
     "dev:web": "pnpm --dir frontend dev",
     "dev:pb": "node pocketbase/scripts/dev.mjs",
-    "dev:jimeng-helper": "node --import tsx scripts/jimeng-helper.mts",
     "dev:doubao-helper": "node --import tsx scripts/doubao-helper.mts",
     "dev:art-worker": "node --import tsx scripts/art-worker.mts",
     "dev:all": "node scripts/dev-all.mjs",

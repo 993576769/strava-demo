@@ -11,6 +11,7 @@ export enum Collections {
   Activities = 'activities',
   ActivityStreams = 'activity_streams',
   ArtJobs = 'art_jobs',
+  ArtPromptTemplates = 'art_prompt_templates',
   ArtResults = 'art_results',
   StravaConnections = 'strava_connections',
   SyncEvents = 'sync_events',
@@ -178,6 +179,22 @@ export type ArtJobsRecord = {
   worker_ref?: string
 }
 
+export enum ArtPromptTemplatesProviderOptions {
+  DoubaoSeedream = 'doubao-seedream',
+}
+
+export type ArtPromptTemplatesRecord = {
+  created?: IsoDateString
+  id: string
+  is_active?: boolean
+  notes?: string
+  prompt_template: string
+  provider: ArtPromptTemplatesProviderOptions
+  reference_image_url?: string
+  template_key: string
+  updated?: IsoDateString
+}
+
 export enum ArtResultsVisibilityOptions {
   Private = 'private',
   Unlisted = 'unlisted',
@@ -236,6 +253,7 @@ export type StravaConnectionsResponse<Texpand = unknown> = Required<StravaConnec
 export type ActivitiesResponse<Texpand = unknown> = Required<ActivitiesRecord> & BaseSystemFields<Texpand>
 export type ActivityStreamsResponse<Texpand = unknown> = Required<ActivityStreamsRecord> & BaseSystemFields<Texpand>
 export type ArtJobsResponse<Texpand = unknown> = Required<ArtJobsRecord> & BaseSystemFields<Texpand>
+export type ArtPromptTemplatesResponse<Texpand = unknown> = Required<ArtPromptTemplatesRecord> & BaseSystemFields<Texpand>
 export type ArtResultsResponse<Texpand = unknown> = Required<ArtResultsRecord> & BaseSystemFields<Texpand>
 export type SyncEventsResponse<Texpand = unknown> = Required<SyncEventsRecord> & BaseSystemFields<Texpand>
 
@@ -243,6 +261,7 @@ export type CollectionRecords = {
   activities: ActivitiesRecord
   activity_streams: ActivityStreamsRecord
   art_jobs: ArtJobsRecord
+  art_prompt_templates: ArtPromptTemplatesRecord
   art_results: ArtResultsRecord
   strava_connections: StravaConnectionsRecord
   sync_events: SyncEventsRecord
@@ -253,6 +272,7 @@ export type CollectionResponses = {
   activities: ActivitiesResponse
   activity_streams: ActivityStreamsResponse
   art_jobs: ArtJobsResponse
+  art_prompt_templates: ArtPromptTemplatesResponse
   art_results: ArtResultsResponse
   strava_connections: StravaConnectionsResponse
   sync_events: SyncEventsResponse
@@ -273,6 +293,7 @@ export type TypedPocketBase = PocketBase & {
   collection(idOrName: 'activities'): RecordService<ActivitiesResponse>
   collection(idOrName: 'activity_streams'): RecordService<ActivityStreamsResponse>
   collection(idOrName: 'art_jobs'): RecordService<ArtJobsResponse>
+  collection(idOrName: 'art_prompt_templates'): RecordService<ArtPromptTemplatesResponse>
   collection(idOrName: 'art_results'): RecordService<ArtResultsResponse>
   collection(idOrName: 'strava_connections'): RecordService<StravaConnectionsResponse>
   collection(idOrName: 'sync_events'): RecordService<SyncEventsResponse>

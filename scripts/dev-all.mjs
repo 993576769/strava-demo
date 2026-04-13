@@ -9,12 +9,6 @@ const startupTimeoutMs = Number.parseInt(process.env.PB_DEV_STARTUP_TIMEOUT_MS |
 
 const immediateProcesses = [
   {
-    name: 'jimeng-helper',
-    command: process.execPath,
-    args: ['--import', 'tsx', path.resolve(repoRoot, 'scripts/jimeng-helper.mts')],
-    color: '\x1b[34m',
-  },
-  {
     name: 'doubao-helper',
     command: process.execPath,
     args: ['--import', 'tsx', path.resolve(repoRoot, 'scripts/doubao-helper.mts')],

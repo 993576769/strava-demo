@@ -4,8 +4,16 @@ module.exports = {
   },
 
   getHelperBaseUrl: function () {
-    var host = String($os.getenv("JIMENG_HELPER_HOST") || "127.0.0.1").trim()
-    var port = String($os.getenv("JIMENG_HELPER_PORT") || "3210").trim()
+    var host = String(
+      $os.getenv("ART_ASSET_HELPER_HOST")
+      || $os.getenv("DOUBAO_HELPER_HOST")
+      || "127.0.0.1"
+    ).trim()
+    var port = String(
+      $os.getenv("ART_ASSET_HELPER_PORT")
+      || $os.getenv("DOUBAO_HELPER_PORT")
+      || "3211"
+    ).trim()
     return "http://" + host + ":" + port
   },
 

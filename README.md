@@ -8,8 +8,7 @@
 - 手动同步 Strava 活动到本地 `activities` / `activity_streams`
 - 从活动创建 `art_jobs`
 - 通过统一渲染入口生成 `art_results`
-- 已支持接入即梦 4.6，未配置时自动回退到 mock SVG 渲染器
-- 已支持通过 JS OpenAI SDK 接入 `doubao-seedream-5-0-260128`
+- 已支持接入 `doubao-seedream-5-0-260128`
 - 查看结果详情并下载成品
 
 当前仍是 MVP 迭代中，默认保留 mock 回退，方便在未配置火山引擎 AK/SK 时继续联调产品闭环。
@@ -24,7 +23,6 @@
   - 活动列表 / 活动详情
   - 生成任务创建
   - 统一生成结果页
-  - 即梦 4.6 渲染接入
   - Doubao Seedream 5.0 渲染接入
 - 暂未完成：
   - Strava webhook
@@ -74,15 +72,11 @@ cp frontend/.env.example frontend/.env
 - `STRAVA_SCOPES`
   默认建议 `read,activity:read_all`
 - `ART_RENDER_PROVIDER`
-  可选 `mock`、`jimeng46` 或 `doubao-seedream`；不填时会自动判断，如果即梦参数齐全则优先走 `jimeng46`，否则在 `ARK_API_KEY` 存在时走 `doubao-seedream`
+  可选 `mock` 或 `doubao-seedream`；不填时会自动判断，如果 `ARK_API_KEY` 存在则优先走 `doubao-seedream`
 - `ART_ASSET_BASE_URL`
   公开可访问的应用域名，用来拼接轨迹底稿图片 URL；图生图模式下必须能被火山引擎访问
-- `VOLCENGINE_ACCESS_KEY`
-- `VOLCENGINE_SECRET_KEY`
-- `JIMENG_REQ_KEY`
-  请按即梦 4.6 官方接口文档填写对应模型的 `req_key`
 - `ARK_API_KEY`
-  用于通过 JS OpenAI SDK 调用火山方舟兼容接口
+  用于调用火山方舟图片生成接口
 
 如果要启用 `doubao-seedream-5-0-260128`，建议补这些字段：
 
@@ -104,24 +98,6 @@ cp frontend/.env.example frontend/.env
   默认 `3211`
 - `DOUBAO_HELPER_TIMEOUT_MS`
   默认 `120000`
-
-如果要启用即梦 4.6，建议同时补这些可选字段：
-
-- `JIMENG_API_HOST`
-  默认 `visual.volcengineapi.com`
-- `JIMENG_API_REGION`
-  默认 `cn-north-1`
-- `JIMENG_API_SERVICE`
-  默认 `cv`
-- `JIMENG_API_VERSION`
-  默认 `2022-08-31`
-- `JIMENG_SUBMIT_ACTION`
-  默认 `CVSync2AsyncSubmitTask`
-- `JIMENG_QUERY_ACTION`
-  默认 `CVSync2AsyncGetResult`
-- `JIMENG_NEGATIVE_PROMPT`
-- `JIMENG_POLL_INTERVAL_MS`
-- `JIMENG_POLL_MAX_ATTEMPTS`
 
 前端 `frontend/.env` 通常只需要保留：
 
@@ -195,7 +171,7 @@ pnpm run dev:web
 3. 授权成功后进入活动页。
 4. 点击“同步活动”。
 5. 打开某条活动详情，创建生成任务。
-6. 如果已配置 `doubao-seedream-5-0-260128` 或即梦 4.6，等待远端生成完成；否则会自动回退到 mock。
+6. 如果已配置 `doubao-seedream-5-0-260128`，等待远端生成完成；否则会自动回退到 mock。
 7. 查看结果页并下载成品。
 
 ## 常用命令
@@ -260,5 +236,5 @@ vue-pocketbase-template/
 
 1. 用真实 Strava 应用做一次端到端联调
 2. 补 webhook / 增量同步和同步退避
-3. 打磨即梦 4.6 的 prompt、轮询和错误恢复
+3. 继续打磨 Doubao 的 prompt、重试策略和错误恢复
 4. 最后再补邮箱密码体系

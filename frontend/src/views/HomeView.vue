@@ -72,7 +72,7 @@ const disconnectStrava = async () => {
             GitHub 登录、Strava 同步和成品生成链路已经接通。
           </h2>
           <p class="mt-4 text-[var(--color-text-muted)] leading-7">
-            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成成品图；未配置即梦 4.6 时会自动回退到 mock。
+            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成成品图；未配置 Doubao Seedream 5.0 时会自动回退到 mock。
           </p>
 
           <div class="mt-6 flex flex-wrap gap-3">

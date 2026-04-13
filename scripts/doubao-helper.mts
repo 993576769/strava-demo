@@ -1,5 +1,6 @@
 import http from 'node:http'
 import process from 'node:process'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { loadEnv } from './load-env.mts'
 
 type GenerateImagePayload = {
@@ -20,6 +21,27 @@ type ErrorPayload = {
   error: string
   code?: string
   status?: number
+}
+
+type S3Config = {
+  accessKeyId: string
+  secretAccessKey: string
+  sessionToken: string
+  bucket: string
+  region: string
+  endpoint: string
+  publicBaseUrl: string
+}
+
+type S3UploadPayload = {
+  objectKey: string
+  mimeType?: string
+  base64Data: string
+}
+
+type S3UploadResponse = {
+  url: string
+  objectKey: string
 }
 
 const repoRoot = process.cwd()
@@ -62,6 +84,25 @@ const getApiKey = () => {
 
   return apiKey
 }
+
+const getRequiredEnv = (key: string) => {
+  const value = process.env[key]
+  if (!value) {
+    throw new Error(`Missing required env: ${key}`)
+  }
+
+  return value
+}
+
+const getS3Config = (): S3Config => ({
+  accessKeyId: getRequiredEnv('AWS_ACCESS_KEY_ID'),
+  secretAccessKey: getRequiredEnv('AWS_SECRET_ACCESS_KEY'),
+  sessionToken: process.env.AWS_SESSION_TOKEN || '',
+  bucket: getRequiredEnv('AWS_S3_BUCKET'),
+  region: getRequiredEnv('AWS_S3_REGION'),
+  endpoint: process.env.AWS_S3_ENDPOINT || '',
+  publicBaseUrl: process.env.AWS_S3_PUBLIC_BASE_URL || '',
+})
 
 const extractError = (error: unknown) => {
   if (typeof error !== 'object' || error === null) {
@@ -161,6 +202,81 @@ const shouldRetryWithoutReferenceImage = (error: unknown, imageList: string[]) =
   )
 }
 
+const normalizeUrlLike = (value: string, defaultProtocol = 'https://') => {
+  const normalized = String(value || '').trim()
+  if (!normalized) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized
+  }
+
+  return `${defaultProtocol}${normalized}`
+}
+
+const resolveS3ObjectKey = (objectKey: string) => {
+  const normalizedKey = String(objectKey).replace(/^\/+/, '')
+  if (!normalizedKey) {
+    throw new Error('Missing S3 object key.')
+  }
+
+  return normalizedKey
+}
+
+const createS3Client = (config: S3Config) => {
+  return new S3Client({
+    region: config.region,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      sessionToken: config.sessionToken || undefined,
+    },
+    endpoint: config.endpoint ? normalizeUrlLike(config.endpoint) : undefined,
+    forcePathStyle: !!config.endpoint,
+  })
+}
+
+const buildS3PublicUrl = (config: S3Config, objectKey: string) => {
+  if (config.publicBaseUrl) {
+    return `${config.publicBaseUrl.replace(/\/$/, '')}/${objectKey}`
+  }
+
+  if (config.endpoint) {
+    const endpoint = new URL(normalizeUrlLike(config.endpoint))
+    endpoint.pathname = `/${config.bucket}/${objectKey}`
+    return endpoint.toString()
+  }
+
+  return `https://${config.bucket}.s3.${config.region}.amazonaws.com/${objectKey}`
+}
+
+const uploadToS3 = async ({ objectKey, mimeType, base64Data }: S3UploadPayload): Promise<S3UploadResponse> => {
+  const config = getS3Config()
+  const resolvedObjectKey = resolveS3ObjectKey(objectKey)
+  const bodyBuffer = Buffer.from(String(base64Data || ''), 'base64')
+  const client = createS3Client(config)
+
+  try {
+    await client.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: resolvedObjectKey,
+      Body: bodyBuffer,
+      ContentType: mimeType || 'application/octet-stream',
+    }), {
+      abortSignal: AbortSignal.timeout(requestTimeoutMs),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`S3 upload failed: ${message}`)
+  }
+
+  return {
+    url: buildS3PublicUrl(config, resolvedObjectKey),
+    objectKey: resolvedObjectKey,
+  }
+}
+
 const postImagesGeneration = async (body: Record<string, unknown>) => {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs)
@@ -214,6 +330,26 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/health') {
     json(res, 200, { ok: true })
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/s3-upload') {
+    let payload: S3UploadPayload
+    try {
+      payload = await readJsonBody<S3UploadPayload>(req)
+    } catch (error) {
+      json(res, 400, { error: error instanceof Error ? error.message : 'Invalid JSON body.' } satisfies ErrorPayload)
+      return
+    }
+
+    try {
+      const uploaded = await uploadToS3(payload)
+      json(res, 200, uploaded)
+    } catch (error) {
+      json(res, 502, {
+        error: error instanceof Error ? error.message : 'Failed to upload to S3.',
+      } satisfies ErrorPayload)
+    }
     return
   }
 

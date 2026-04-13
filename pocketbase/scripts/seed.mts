@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import PocketBase from 'pocketbase'
+import { artPromptTemplateSeeds } from '../seeds/art-prompt-templates.mts'
 import { demoUserSeed } from '../seeds/demo-user.mts'
 import { loadEnv } from '../../scripts/load-env.mts'
 
@@ -27,6 +28,7 @@ Environment variables:
 
 Notes:
   - Seed data comes from pocketbase/seeds/demo-user.mts
+  - Prompt template seed data comes from pocketbase/seeds/art-prompt-templates.mts
   - This script reads .env first and .env.local as a compatibility fallback
   - Credentials fall back in this order: PB_SEED_* -> PB_TYPEGEN_* -> PB_ADMIN_*
 `)
@@ -127,10 +129,36 @@ const ensureDemoUser = async (): Promise<SeedRecord> => {
   })
 }
 
+const ensureArtPromptTemplates = async () => {
+  for (const seed of artPromptTemplateSeeds) {
+    const existing = await pb
+      .collection('art_prompt_templates')
+      .getFirstListItem<SeedRecord>(`template_key="${seed.templateKey}"`)
+      .catch(() => null)
+
+    const payload = {
+      template_key: seed.templateKey,
+      provider: seed.provider,
+      prompt_template: seed.promptTemplate,
+      reference_image_url: seed.referenceImageUrl,
+      is_active: seed.isActive,
+      notes: seed.notes || '',
+    }
+
+    if (existing) {
+      await pb.collection('art_prompt_templates').update(existing.id, payload)
+      continue
+    }
+
+    await pb.collection('art_prompt_templates').create(payload)
+  }
+}
+
 const main = async () => {
   console.log(`Seeding PocketBase at ${pbUrl}`)
   await authenticateSuperuser()
   const demoUser = await ensureDemoUser()
+  await ensureArtPromptTemplates()
   console.log(`PocketBase seed completed for ${demoUser.email}`)
 }
 
