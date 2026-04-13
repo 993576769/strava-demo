@@ -18,6 +18,14 @@ migrate((app) => {
     )
   }
 
+  if (!hasField(users, "is_admin")) {
+    users.fields.add(
+      new BoolField({
+        name: "is_admin",
+      }),
+    )
+  }
+
   if (hasField(users, "theme")) {
     users.fields.removeByName("theme")
   }
@@ -37,6 +45,10 @@ migrate((app) => {
 
   if (hasField(users, "is_active")) {
     users.fields.removeByName("is_active")
+  }
+
+  if (hasField(users, "is_admin")) {
+    users.fields.removeByName("is_admin")
   }
 
   return app.save(users)

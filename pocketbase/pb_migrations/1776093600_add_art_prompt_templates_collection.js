@@ -19,6 +19,9 @@ migrate((app) => {
       type: "base",
       listRule: "@request.auth.id != ''",
       viewRule: "@request.auth.id != ''",
+      createRule: "@request.auth.id != '' && @request.auth.is_admin = true",
+      updateRule: "@request.auth.id != '' && @request.auth.is_admin = true",
+      deleteRule: "@request.auth.id != '' && @request.auth.is_admin = true",
       fields: [
         {
           name: "template_key",
@@ -45,6 +48,13 @@ migrate((app) => {
           name: "reference_image_url",
           type: "text",
           max: 4000,
+        },
+        {
+          name: "reference_image_file",
+          type: "file",
+          maxSelect: 1,
+          maxSize: 10485760,
+          mimeTypes: ["image/jpeg", "image/png", "image/webp"],
         },
         {
           name: "is_active",

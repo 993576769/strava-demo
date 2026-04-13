@@ -30,6 +30,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/admin/prompt-templates',
+      name: 'admin-prompt-templates',
+      component: () => import('@/views/AdminPromptTemplatesView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
       path: '/dev/webhook-status',
       name: 'webhook-status',
       component: () => import('@/views/WebhookStatusView.vue'),
@@ -54,21 +60,34 @@ const resolveGuestRedirect = (to: RouteLocationNormalizedGeneric): RouteLocation
 }
 
 // 路由守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
-  
+
+  if (auth.isLoggedIn) {
+    try {
+      await auth.refresh()
+    } catch {
+      auth.logout()
+    }
+  }
+
   // 需要登录但未登录
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     next({ name: 'login', query: { redirect: to.fullPath } })
     return
   }
-  
+
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    next({ name: 'home' })
+    return
+  }
+
   // 已登录但访问登录页
   if (to.meta.guest && auth.isLoggedIn) {
     next(resolveGuestRedirect(to))
     return
   }
-  
+
   next()
 })
 

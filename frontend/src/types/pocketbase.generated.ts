@@ -48,6 +48,7 @@ export type UsersRecord = {
   emailVisibility?: boolean
   id: string
   is_active?: boolean
+  is_admin?: boolean
   name?: string
   password: string
   tokenKey: string
@@ -184,6 +185,7 @@ export type ArtPromptTemplatesRecord = {
   notes?: string
   prompt_template: string
   provider: ArtPromptTemplatesProviderOptions
+  reference_image_file?: string
   reference_image_url?: string
   template_key: string
   updated?: IsoDateString
@@ -281,6 +283,7 @@ export type UserCreate = Pick<UsersRecord, 'email' | 'password'> & {
 export type UserUpdate = {
   name?: string
   is_active?: boolean
+  is_admin?: boolean
 }
 
 export type TypedPocketBase = PocketBase & {

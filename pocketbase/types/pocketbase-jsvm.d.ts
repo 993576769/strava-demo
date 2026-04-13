@@ -103,6 +103,11 @@ declare class BoolField implements PBField {
   name: string
 }
 
+declare class FileField implements PBField {
+  constructor(config: PBFieldConfig)
+  name: string
+}
+
 declare class DateField implements PBField {
   constructor(config: PBFieldConfig)
   name: string

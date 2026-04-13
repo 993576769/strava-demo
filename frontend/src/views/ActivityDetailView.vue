@@ -295,8 +295,8 @@ onUnmounted(() => {
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
     <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-      <div class="flex justify-between items-center gap-4 mb-6">
-        <button class="btn btn-ghost" @click="router.push({ name: 'activities' })">
+      <div class="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button class="btn btn-ghost w-full justify-center sm:w-auto sm:justify-start" @click="router.push({ name: 'activities' })">
           <ArrowLeft class="w-4 h-4 mr-2" />
           返回活动列表
         </button>
@@ -313,8 +313,8 @@ onUnmounted(() => {
 
       <section v-else class="grid gap-6">
         <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 sm:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-          <div class="flex flex-wrap items-center gap-2">
-            <h1 class="text-2xl sm:text-3xl font-semibold text-[var(--color-text)]">{{ activity.name }}</h1>
+          <div class="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <h1 class="w-full min-w-0 break-words text-2xl font-semibold leading-tight text-[var(--color-text)] sm:w-auto sm:text-3xl">{{ activity.name }}</h1>
             <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
               {{ activity.sport_type || 'unknown' }}
             </span>
@@ -406,13 +406,13 @@ onUnmounted(() => {
                   v-for="template in artPromptTemplatesStore.options"
                   :key="template.id"
                   type="button"
-                  class="rounded-2xl border p-4 text-left transition"
+                  class="min-w-0 rounded-2xl border p-4 text-left transition"
                   :class="selectableCardClass(selectedTemplateKey === template.id, 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]')"
                   @click="selectedTemplateKey = template.id"
                 >
-                  <div class="flex items-center justify-between gap-3">
-                    <span class="text-sm font-semibold text-[var(--color-text)]">{{ template.label }}</span>
-                    <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="cn(template.accentClass)">
+                  <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span class="min-w-0 break-words text-sm font-semibold text-[var(--color-text)]">{{ template.label }}</span>
+                    <span class="max-w-full break-all rounded-full px-2.5 py-1 text-xs font-medium sm:self-start" :class="cn(template.accentClass)">
                       {{ template.id }}
                     </span>
                   </div>
@@ -455,9 +455,9 @@ onUnmounted(() => {
                 {{ artResultsStore.error }}
               </div>
 
-              <div class="mt-5 flex flex-wrap items-center gap-3">
+              <div class="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <button
-                  class="btn btn-primary"
+                  class="btn btn-primary w-full justify-center sm:w-auto"
                   :disabled="!activity.is_generatable || !authStore.isActive || !selectedTemplateKey || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
                   @click="createArtJob"
                 >
@@ -473,7 +473,7 @@ onUnmounted(() => {
                           : '生成成品'
                   }}
                 </button>
-                <p class="text-sm text-[var(--color-text-muted)]">
+                <p class="text-sm leading-6 text-[var(--color-text-muted)]">
                   {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由后台 worker 异步消费队列并产出成品。' : '当前活动不可生成，按钮已禁用。' }}
                 </p>
               </div>
@@ -504,10 +504,10 @@ onUnmounted(() => {
                   :key="job.id"
                   class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
                 >
-                  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div>
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0">
                       <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm font-semibold text-[var(--color-text)]">{{ formatArtPromptTemplateLabel(job.style_preset) }}</span>
+                        <span class="min-w-0 break-words text-sm font-semibold text-[var(--color-text)]">{{ formatArtPromptTemplateLabel(job.style_preset) }}</span>
                         <span
                           class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
                           :class="jobStatusClass(job.status)"
@@ -526,7 +526,7 @@ onUnmounted(() => {
                       </p>
                     </div>
 
-                    <div class="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                    <div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-muted)]">
                       <CheckCircle2 class="w-4 h-4" />
                       {{ getAspectRatioLabel(job.render_options_json) }}
                     </div>
@@ -568,7 +568,7 @@ onUnmounted(() => {
                     class="h-52 w-full rounded-[18px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] object-cover"
                   />
 
-                  <div class="mt-4 flex items-start justify-between gap-3">
+                  <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                       <p class="text-sm font-semibold text-[var(--color-text)] truncate">
                         {{ result.title_snapshot || 'Untitled result' }}
@@ -577,7 +577,7 @@ onUnmounted(() => {
                         {{ result.subtitle_snapshot || '暂无副标题' }}
                       </p>
                     </div>
-                    <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                    <span class="inline-flex max-w-full items-center self-start break-all rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                       {{ formatArtPromptTemplateLabel(result.style_preset) }}
                     </span>
                   </div>

@@ -126,6 +126,7 @@ const ensureDemoUser = async (): Promise<SeedRecord> => {
     passwordConfirm: demoUserSeed.password,
     name: demoUserSeed.name,
     is_active: demoUserSeed.isActive,
+    is_admin: demoUserSeed.isAdmin,
   })
 }
 

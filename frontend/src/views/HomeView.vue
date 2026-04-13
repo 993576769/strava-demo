@@ -38,6 +38,10 @@ const syncActivities = async () => {
 const disconnectStrava = async () => {
   await strava.disconnect()
 }
+
+const openPromptTemplates = () => {
+  router.push({ name: 'admin-prompt-templates' })
+}
 </script>
 
 <template>
@@ -95,6 +99,10 @@ const disconnectStrava = async () => {
             <button class="btn btn-ghost" @click="openActivities">
               <Sparkles class="w-4 h-4 mr-2" />
               查看本地活动
+            </button>
+            <button v-if="auth.isAdmin" class="btn btn-ghost" @click="openPromptTemplates">
+              <ShieldCheck class="w-4 h-4 mr-2" />
+              编辑 Prompt 模板
             </button>
           </div>
 

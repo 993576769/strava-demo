@@ -101,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!user.value && pb.authStore.isValid)
   const isActive = computed(() => user.value?.is_active === true)
+  const isAdmin = computed(() => user.value?.is_admin === true)
   const displayName = computed(() => user.value?.name || user.value?.email || '运动用户')
 
   pb.authStore.onChange((_token, model) => {
@@ -159,6 +160,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isLoggedIn,
     isActive,
+    isAdmin,
     displayName,
     login,
     register,

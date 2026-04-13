@@ -19,9 +19,9 @@ migrate((app) => {
 
   artPromptTemplates.listRule = "@request.auth.id != ''"
   artPromptTemplates.viewRule = "@request.auth.id != ''"
-  artPromptTemplates.createRule = null
-  artPromptTemplates.updateRule = null
-  artPromptTemplates.deleteRule = null
+  artPromptTemplates.createRule = "@request.auth.id != '' && @request.auth.is_admin = true"
+  artPromptTemplates.updateRule = "@request.auth.id != '' && @request.auth.is_admin = true"
+  artPromptTemplates.deleteRule = "@request.auth.id != '' && @request.auth.is_admin = true"
   app.save(artPromptTemplates)
 }, (app) => {
   const artPromptTemplates = findCollection(app, "art_prompt_templates")

@@ -255,20 +255,20 @@ defineExpose({
 
 <template>
   <section class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-    <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
       <div class="flex items-start gap-3">
         <Route class="w-5 h-5 mt-1 text-primary shrink-0" />
         <div>
           <h2 class="text-base font-semibold text-[var(--color-text)]">轨迹图预览</h2>
           <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-            这张图会优先基于 Strava `summary_polyline` 绘制为地图预览，并导出 JPG 底稿。
+            这张图会优先基于 Strava `summary_polyline` 绘制为地图预览，并导出 PNG 底稿。
           </p>
         </div>
       </div>
 
-      <button class="btn btn-ghost" :disabled="!canRenderRoute || exporting" @click="exportMapImage">
+      <button class="btn btn-ghost w-full justify-center sm:w-auto" :disabled="!canRenderRoute || exporting" @click="exportMapImage">
         <Download class="w-4 h-4 mr-2" />
-        {{ exporting ? '正在导出...' : '导出轨迹图 JPG' }}
+        {{ exporting ? '正在导出...' : '导出轨迹图 PNG' }}
       </button>
     </div>
 
@@ -291,8 +291,14 @@ defineExpose({
 
 <style scoped>
 .leaflet-map {
-  height: 400px;
+  height: 320px;
   width: 100%;
+}
+
+@media (min-width: 640px) {
+  .leaflet-map {
+    height: 400px;
+  }
 }
 
 :deep(.leaflet-control-attribution),

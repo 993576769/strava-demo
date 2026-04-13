@@ -3,6 +3,7 @@ export type DemoUserSeed = {
   password: string
   name: string
   isActive: boolean
+  isAdmin: boolean
 }
 
 export const demoUserSeed: DemoUserSeed = {
@@ -10,4 +11,5 @@ export const demoUserSeed: DemoUserSeed = {
   password: 'demo123456',
   name: 'Template Demo',
   isActive: true,
+  isAdmin: true,
 }

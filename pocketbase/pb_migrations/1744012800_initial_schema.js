@@ -46,6 +46,10 @@ migrate((app) => {
           name: "is_active",
           type: "bool",
         },
+        {
+          name: "is_admin",
+          type: "bool",
+        },
       ],
     })
 
