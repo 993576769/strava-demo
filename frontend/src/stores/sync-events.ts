@@ -1,34 +1,32 @@
+import type { SyncEvent } from '@/types/pocketbase'
+import { useQuery } from '@pinia/colada'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { syncEventsCollection } from '@/lib/pocketbase'
-import { isSyncEvent, type SyncEvent } from '@/types/pocketbase'
+import { isSyncEvent } from '@/types/pocketbase'
 
 export const useSyncEventsStore = defineStore('syncEvents', () => {
-  const events = ref<SyncEvent[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-
-  const fetchLatestEvents = async () => {
-    loading.value = true
-    error.value = null
-
-    try {
+  const eventsQuery = useQuery<SyncEvent[], Error>({
+    key: ['sync-events', 'latest'],
+    query: async () => {
       const result = await syncEventsCollection().getList(1, 8, {
         sort: '-occurred_at',
       })
-      events.value = result.items.filter(isSyncEvent)
-    } catch (value) {
-      console.error(value)
-      events.value = []
-      error.value = '读取同步事件失败'
-    } finally {
-      loading.value = false
-    }
+      return result.items.filter(isSyncEvent)
+    },
+    refetchOnWindowFocus: false,
+  })
+
+  const events = computed(() => eventsQuery.data.value ?? [])
+  const loading = computed(() => eventsQuery.isLoading.value)
+  const error = computed(() => eventsQuery.error.value ? '读取同步事件失败' : null)
+
+  const fetchLatestEvents = async () => {
+    await eventsQuery.refetch()
   }
 
   const clear = () => {
-    events.value = []
-    error.value = null
+    // Colada cache is shared; local reset isn't needed here.
   }
 
   return {

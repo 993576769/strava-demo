@@ -1,4 +1,4 @@
-export type DemoUserSeed = {
+export interface DemoUserSeed {
   email: string
   password: string
   name: string

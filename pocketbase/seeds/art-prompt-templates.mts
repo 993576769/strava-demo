@@ -1,4 +1,4 @@
-export type ArtPromptTemplateSeed = {
+export interface ArtPromptTemplateSeed {
   templateKey: string
   provider: 'doubao-seedream'
   promptTemplate: string

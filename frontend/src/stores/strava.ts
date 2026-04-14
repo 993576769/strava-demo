@@ -1,16 +1,28 @@
+import type { StravaConnection, StravaConnectionStatus } from '@/types/pocketbase'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { pb } from '@/lib/pocketbase'
 import { useAuthStore } from '@/stores/auth'
-import { isStravaConnection, type StravaConnection, type StravaConnectionStatus } from '@/types/pocketbase'
+import { isStravaConnection } from '@/types/pocketbase'
 
-export type StravaUiStatus =
-  | 'not_connected'
-  | 'connecting'
-  | 'connected'
-  | 'syncing'
-  | 'reauthorization_required'
-  | 'error'
+export type StravaUiStatus
+  = | 'not_connected'
+    | 'connecting'
+    | 'connected'
+    | 'syncing'
+    | 'reauthorization_required'
+    | 'error'
+
+interface StravaSyncStats {
+  fetched: number
+  created: number
+  updated: number
+  ready: number
+  partial: number
+  generatable: number
+  failed: number
+}
 
 const statusLabelMap: Record<StravaUiStatus, string> = {
   not_connected: '未连接 Strava',
@@ -22,35 +34,89 @@ const statusLabelMap: Record<StravaUiStatus, string> = {
 }
 
 const mapRecordStatusToUi = (status: StravaConnectionStatus | undefined): StravaUiStatus => {
-  if (!status) return 'not_connected'
-  if (status === 'reauthorization_required') return 'reauthorization_required'
-  if (status === 'revoked' || status === 'expired') return 'error'
-  if (status === 'active') return 'connected'
+  if (!status) { return 'not_connected' }
+  if (status === 'reauthorization_required') { return 'reauthorization_required' }
+  if (status === 'revoked' || status === 'expired') { return 'error' }
+  if (status === 'active') { return 'connected' }
   return 'not_connected'
 }
 
 export const useStravaStore = defineStore('strava', () => {
   const auth = useAuthStore()
-  const connection = ref<StravaConnection | null>(null)
-  const loading = ref(false)
+  const queryCache = useQueryCache()
+  const syncSummary = ref<StravaSyncStats | null>(null)
   const connecting = ref(false)
-  const syncing = ref(false)
-  const disconnecting = ref(false)
-  const error = ref<string | null>(null)
-  const syncSummary = ref<{
-    fetched: number
-    created: number
-    updated: number
-    ready: number
-    partial: number
-    generatable: number
-    failed: number
-  } | null>(null)
+
+  const connectionQuery = useQuery<StravaConnection | null, Error>({
+    key: () => ['strava', 'connection', auth.user?.id ?? '__guest__'],
+    enabled: computed(() => auth.isLoggedIn),
+    query: async () => {
+      const result = await pb.send<{ connection?: unknown }>('/api/integrations/strava/status', {
+        method: 'GET',
+      })
+
+      return result.connection && isStravaConnection(result.connection) ? result.connection : null
+    },
+    refetchOnWindowFocus: false,
+  })
+
+  const syncMutation = useMutation<{ connection: StravaConnection | null, stats: StravaSyncStats | null }, void, Error>({
+    mutation: async () => {
+      const result = await pb.send<{
+        connection?: unknown
+        stats?: StravaSyncStats
+      }>('/api/integrations/strava/sync', {
+        method: 'POST',
+      })
+
+      return {
+        connection: result.connection && isStravaConnection(result.connection) ? result.connection : null,
+        stats: result.stats ?? null,
+      }
+    },
+    onSuccess: ({ connection, stats }) => {
+      syncSummary.value = stats
+
+      if (connection !== null) {
+        queryCache.setQueryData(['strava', 'connection', auth.user?.id ?? '__guest__'], connection)
+      }
+      else {
+        void connectionQuery.refetch()
+      }
+    },
+  })
+
+  const disconnectMutation = useMutation<boolean, void, Error>({
+    mutation: async () => {
+      await pb.send('/api/integrations/strava/disconnect', {
+        method: 'POST',
+      })
+      return true
+    },
+    onSuccess: () => {
+      queryCache.setQueryData(['strava', 'connection', auth.user?.id ?? '__guest__'], null)
+      syncSummary.value = null
+    },
+  })
+
+  const connection = computed(() => (auth.isLoggedIn ? (connectionQuery.data.value ?? null) : null))
+  const loading = computed(() => auth.isLoggedIn && connectionQuery.isLoading.value)
+  const syncing = computed(() => syncMutation.isLoading.value)
+  const disconnecting = computed(() => disconnectMutation.isLoading.value)
+  const error = computed(() => {
+    if (disconnectMutation.error.value) { return disconnectMutation.error.value.message || '断开 Strava 连接失败' }
+
+    if (syncMutation.error.value) { return syncMutation.error.value.message || '同步 Strava 活动失败' }
+
+    if (connectionQuery.error.value) { return '读取 Strava 连接状态失败' }
+
+    return null
+  })
 
   const status = computed<StravaUiStatus>(() => {
-    if (!auth.isLoggedIn) return 'not_connected'
-    if (connecting.value) return 'connecting'
-    if (syncing.value) return 'syncing'
+    if (!auth.isLoggedIn) { return 'not_connected' }
+    if (connecting.value) { return 'connecting' }
+    if (syncing.value) { return 'syncing' }
     return mapRecordStatusToUi(connection.value?.status)
   })
 
@@ -69,9 +135,8 @@ export const useStravaStore = defineStore('strava', () => {
   const canDisconnect = computed(() => !!connection.value && !disconnecting.value && !connecting.value && !syncing.value)
 
   const startConnection = async () => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') { return }
 
-    error.value = null
     connecting.value = true
 
     try {
@@ -79,102 +144,45 @@ export const useStravaStore = defineStore('strava', () => {
         method: 'POST',
       })
 
-      if (!result?.url) {
-        throw new Error('Missing Strava authorize url')
-      }
+      if (!result?.url) { throw new Error('Missing Strava authorize url') }
 
       window.location.assign(result.url)
-    } catch (value) {
+    }
+    catch (value) {
       console.error(value)
-      error.value = '发起 Strava 连接失败'
       connecting.value = false
     }
   }
 
   const fetchConnection = async () => {
-    if (!auth.isLoggedIn) {
-      connection.value = null
-      return
-    }
-
-    loading.value = true
-    error.value = null
-
-    try {
-      const result = await pb.send<{
-        connection?: unknown
-      }>('/api/integrations/strava/status', {
-        method: 'GET',
-      })
-      connection.value = result.connection && isStravaConnection(result.connection) ? result.connection : null
-    } catch (value) {
-      console.error(value)
-      connection.value = null
-      error.value = '读取 Strava 连接状态失败'
-    } finally {
-      loading.value = false
-    }
+    if (!auth.isLoggedIn) { return }
+    await connectionQuery.refetch()
   }
 
   const runSync = async () => {
-    if (!auth.isLoggedIn) return null
+    if (!auth.isLoggedIn) { return null }
 
-    syncing.value = true
-    error.value = null
     syncSummary.value = null
 
     try {
-      const result = await pb.send<{
-        connection?: unknown
-        stats?: {
-          fetched: number
-          created: number
-          updated: number
-          ready: number
-          partial: number
-          generatable: number
-          failed: number
-        }
-      }>('/api/integrations/strava/sync', {
-        method: 'POST',
-      })
-
-      if (result.connection && isStravaConnection(result.connection)) {
-        connection.value = result.connection
-      } else {
-        await fetchConnection()
-      }
-
-      syncSummary.value = result.stats ?? null
-      return result.stats ?? null
-    } catch (value) {
+      const result = await syncMutation.mutateAsync()
+      return result.stats
+    }
+    catch (value) {
       console.error(value)
-      error.value = value instanceof Error ? value.message : '同步 Strava 活动失败'
       return null
-    } finally {
-      syncing.value = false
     }
   }
 
   const disconnect = async () => {
-    if (!auth.isLoggedIn) return false
-
-    disconnecting.value = true
-    error.value = null
-    syncSummary.value = null
+    if (!auth.isLoggedIn) { return false }
 
     try {
-      await pb.send('/api/integrations/strava/disconnect', {
-        method: 'POST',
-      })
-      connection.value = null
-      return true
-    } catch (value) {
+      return await disconnectMutation.mutateAsync()
+    }
+    catch (value) {
       console.error(value)
-      error.value = value instanceof Error ? value.message : '断开 Strava 连接失败'
       return false
-    } finally {
-      disconnecting.value = false
     }
   }
 

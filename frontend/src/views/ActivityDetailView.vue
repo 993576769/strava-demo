@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { AspectRatio } from '@/lib/art-presets'
+import { ArrowLeft, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
 import ActivityRouteMap from '@/components/ActivityRouteMap.vue'
-import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
-import { aspectRatioDefinitions, type AspectRatio } from '@/lib/art-presets'
+import ArtJobCard from '@/components/ArtJobCard.vue'
+import { aspectRatioDefinitions } from '@/lib/art-presets'
 import { cn } from '@/lib/utils'
 import { useActivitiesStore } from '@/stores/activities'
 import { useActivityStreamsStore } from '@/stores/activity-streams'
@@ -13,7 +14,7 @@ import { useArtPromptTemplatesStore } from '@/stores/art-prompt-templates'
 import { useArtResultsStore } from '@/stores/art-results'
 import { useAuthStore } from '@/stores/auth'
 
-type ActivityRouteMapExpose = {
+interface ActivityRouteMapExpose {
   exportPngDataUrl: () => Promise<string | null>
 }
 
@@ -36,8 +37,7 @@ const createFeedback = ref('')
 let queuePollingTimer: number | null = null
 
 const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
-  if (value && typeof value === 'object' && !Array.isArray(value))
-    return value as Record<string, unknown>
+  if (value && typeof value === 'object' && !Array.isArray(value)) { return value as Record<string, unknown> }
 
   if (typeof value === 'string') {
     try {
@@ -45,7 +45,8 @@ const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
         ? parsed as Record<string, unknown>
         : null
-    } catch {
+    }
+    catch {
       return null
     }
   }
@@ -58,20 +59,19 @@ const getSummaryPolyline = (source: unknown) => {
   const map = raw && 'map' in raw ? parseJsonObject(raw.map) : null
   const encoded = map && 'summary_polyline' in map ? map.summary_polyline : ''
 
-  if (typeof encoded !== 'string' || encoded.length === 0)
-    return null
+  if (typeof encoded !== 'string' || encoded.length === 0) { return null }
 
   return encoded
 }
 
+const formatDistance = (meters: number) => `${(meters / 1000).toFixed(1)} km`
+
 const routeSubtitle = computed(() => {
-  if (!activity.value) return ''
+  if (!activity.value) { return '' }
 
   const parts = []
-  if (activity.value.distance_meters)
-    parts.push(formatDistance(activity.value.distance_meters))
-  if (activity.value.start_date)
-    parts.push(new Date(activity.value.start_date).toLocaleDateString('zh-CN'))
+  if (activity.value.distance_meters) { parts.push(formatDistance(activity.value.distance_meters)) }
+  if (activity.value.start_date) { parts.push(new Date(activity.value.start_date).toLocaleDateString('zh-CN')) }
 
   return parts.join(' · ')
 })
@@ -87,16 +87,16 @@ const routePoints = computed(() => {
 })
 
 const getResultRendererLabel = (result: unknown) => {
-  if (!result || typeof result !== 'object') return '成品'
+  if (!result || typeof result !== 'object') { return '成品' }
 
   const metadata = 'metadata_json' in result ? result.metadata_json : undefined
-  if (!metadata || typeof metadata !== 'object') return '成品'
+  if (!metadata || typeof metadata !== 'object') { return '成品' }
 
   const provider = 'provider' in metadata ? metadata.provider : undefined
-  if (provider === 'doubao-seedream') return 'Doubao Seedream 5.0 成品'
+  if (provider === 'doubao-seedream') { return 'Doubao Seedream 5.0 成品' }
 
   const renderer = 'renderer' in metadata ? metadata.renderer : undefined
-  if (renderer === 'mock-svg-v1') return 'Mock 成品'
+  if (renderer === 'mock-svg-v1') { return 'Mock 成品' }
 
   return '成品'
 }
@@ -111,15 +111,6 @@ const formatDateTime = (value: string) => {
   })
 }
 
-const formatDistance = (meters: number) => `${(meters / 1000).toFixed(1)} km`
-
-const getAspectRatioLabel = (value: unknown) => {
-  if (!value || typeof value !== 'object') return 'portrait'
-
-  const ratio = 'aspectRatio' in value ? value.aspectRatio : undefined
-  return typeof ratio === 'string' && ratio.length > 0 ? ratio : 'portrait'
-}
-
 const activityGeneratableClass = (isGeneratable: boolean) => cn(
   isGeneratable ? 'bg-emerald-500/12 text-emerald-600' : 'bg-amber-500/12 text-amber-600',
 )
@@ -130,40 +121,8 @@ const selectableCardClass = (selected: boolean, selectedClass: string) => cn(
     : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55',
 )
 
-const jobStatusLabel = (status: string) => {
-  switch (status) {
-    case 'pending':
-      return '排队中'
-    case 'processing':
-      return '生成中'
-    case 'succeeded':
-      return '已完成'
-    case 'failed':
-      return '失败'
-    case 'canceled':
-      return '已取消'
-    default:
-      return status
-  }
-}
-
-const jobStatusClass = (status: string) => {
-  switch (status) {
-    case 'succeeded':
-      return cn('bg-emerald-500/12 text-emerald-600')
-    case 'failed':
-      return cn('bg-red-500/12 text-red-500')
-    default:
-      return cn('bg-primary/10 text-primary')
-  }
-}
-
-const getJobTimestamp = (job: { queued_at?: string; started_at?: string; finished_at?: string }) => {
-  return job.queued_at || job.started_at || job.finished_at || ''
-}
-
 const hasRouteBaseImageUrl = (job: unknown) => {
-  if (!job || typeof job !== 'object') return false
+  if (!job || typeof job !== 'object') { return false }
 
   return 'route_base_image_url' in job
     && typeof job.route_base_image_url === 'string'
@@ -175,9 +134,10 @@ const loadPage = async () => {
     await Promise.all([
       activitiesStore.fetchActivityById(activityId.value),
       activityStreamsStore.fetchStreamForActivity(activityId.value),
-      artJobsStore.fetchJobsForActivity(activityId.value),
+      artJobsStore.fetchJobsForActivity(activityId.value, {
+        perPage: 3,
+      }),
       artPromptTemplatesStore.fetchTemplates(),
-      artResultsStore.fetchResultsForActivity(activityId.value),
     ])
   }
 }
@@ -190,16 +150,17 @@ const stopQueuePolling = () => {
 }
 
 const refreshQueueState = async () => {
-  if (!activityId.value) return
+  if (!activityId.value) { return }
 
   await Promise.all([
-    artJobsStore.fetchJobsForActivity(activityId.value),
-    artResultsStore.fetchResultsForActivity(activityId.value),
+    artJobsStore.fetchJobsForActivity(activityId.value, {
+      perPage: 3,
+    }),
   ])
 }
 
 const ensureQueuePolling = () => {
-  if (queuePollingTimer || !activityId.value) return
+  if (queuePollingTimer || !activityId.value) { return }
 
   queuePollingTimer = window.setInterval(() => {
     void refreshQueueState()
@@ -207,7 +168,7 @@ const ensureQueuePolling = () => {
 }
 
 const createArtJob = async () => {
-  if (!activity.value) return
+  if (!activity.value) { return }
 
   createFeedback.value = ''
 
@@ -263,6 +224,12 @@ const openResult = (id: string) => {
   router.push({ name: 'art-result-detail', params: { id } })
 }
 
+const openAllResults = () => {
+  router.push({ name: 'activity-results', params: { id: activityId.value } })
+}
+
+const hasJobResults = computed(() => artJobsStore.jobs.some(job => !!job.result))
+
 watch(activityId, () => {
   void loadPage()
 }, { immediate: true })
@@ -294,10 +261,10 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
-    <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
       <div class="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button class="btn btn-ghost w-full justify-center sm:w-auto sm:justify-start" @click="router.push({ name: 'activities' })">
-          <ArrowLeft class="w-4 h-4 mr-2" />
+          <ArrowLeft class="mr-2 h-4 w-4" />
           返回活动列表
         </button>
       </div>
@@ -307,14 +274,20 @@ onUnmounted(() => {
       </section>
 
       <section v-else-if="!activity" class="rounded-[28px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-card)]/80 p-8 text-center">
-        <h1 class="text-xl font-semibold text-[var(--color-text)]">未找到活动详情</h1>
-        <p class="mt-3 text-[var(--color-text-muted)]">可能是活动尚未同步到本地，或者记录不存在。</p>
+        <h1 class="text-xl font-semibold text-[var(--color-text)]">
+          未找到活动详情
+        </h1>
+        <p class="mt-3 text-[var(--color-text-muted)]">
+          可能是活动尚未同步到本地，或者记录不存在。
+        </p>
       </section>
 
       <section v-else class="grid gap-6">
-        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 sm:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-8">
           <div class="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <h1 class="w-full min-w-0 break-words text-2xl font-semibold leading-tight text-[var(--color-text)] sm:w-auto sm:text-3xl">{{ activity.name }}</h1>
+            <h1 class="w-full min-w-0 text-2xl leading-tight font-semibold break-words text-[var(--color-text)] sm:w-auto sm:text-3xl">
+              {{ activity.name }}
+            </h1>
             <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
               {{ activity.sport_type || 'unknown' }}
             </span>
@@ -327,39 +300,51 @@ onUnmounted(() => {
           </div>
 
           <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">开始时间</p>
+            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+              <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
+                开始时间
+              </p>
               <p class="mt-2 text-sm font-medium text-[var(--color-text)]">
                 {{ activity.start_date ? formatDateTime(activity.start_date) : '暂无' }}
               </p>
             </div>
 
-            <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">距离</p>
+            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+              <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
+                距离
+              </p>
               <p class="mt-2 text-sm font-medium text-[var(--color-text)]">
                 {{ activity.distance_meters ? formatDistance(activity.distance_meters) : '暂无' }}
               </p>
             </div>
 
-            <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">移动时间</p>
+            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+              <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
+                移动时间
+              </p>
               <p class="mt-2 text-sm font-medium text-[var(--color-text)]">
                 {{ activity.moving_time_seconds ? `${Math.round(activity.moving_time_seconds / 60)} 分钟` : '暂无' }}
               </p>
             </div>
 
-            <div class="rounded-2xl bg-[var(--color-surface-elevated)]/70 border border-[var(--color-border)] p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">同步状态</p>
-              <p class="mt-2 text-sm font-medium text-[var(--color-text)]">{{ activity.sync_status }}</p>
+            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+              <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
+                同步状态
+              </p>
+              <p class="mt-2 text-sm font-medium text-[var(--color-text)]">
+                {{ activity.sync_status }}
+              </p>
             </div>
           </div>
 
           <div class="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-5">
             <div class="flex items-start gap-3">
-              <MapPinned class="w-5 h-5 mt-1 text-primary shrink-0" />
+              <MapPinned class="mt-1 h-5 w-5 shrink-0 text-primary" />
               <div>
-                <h2 class="text-base font-semibold text-[var(--color-text)]">轨迹可用性</h2>
-                <p class="mt-2 text-sm text-[var(--color-text-muted)] leading-7">
+                <h2 class="text-base font-semibold text-[var(--color-text)]">
+                  轨迹可用性
+                </h2>
+                <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                   {{
                     activity.is_generatable
                       ? '当前活动已通过基础可生成校验。现在已经可以创建 `art_jobs` 任务，并走真实渲染入口。'
@@ -380,14 +365,16 @@ onUnmounted(() => {
           :filename="`${activity?.sport_type || 'activity'}-${activity?.id || 'route'}`"
         />
 
-        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">
-            <Palette class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <Palette class="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div class="min-w-0 flex-1">
-              <h2 class="text-base font-semibold text-[var(--color-text)]">生成设置</h2>
-                <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                  现在会优先走真实渲染入口；如果本地还没有配置 Doubao Seedream 5.0 的必要参数，则会自动回退到 mock 渲染器。
-                </p>
+              <h2 class="text-base font-semibold text-[var(--color-text)]">
+                生成设置
+              </h2>
+              <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
+                现在会优先走真实渲染入口；如果本地还没有配置 Doubao Seedream 5.0 的必要参数，则会自动回退到 mock 渲染器。
+              </p>
 
               <div v-if="artPromptTemplatesStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
                 正在读取模板选项...
@@ -411,12 +398,14 @@ onUnmounted(() => {
                   @click="selectedTemplateKey = template.id"
                 >
                   <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span class="min-w-0 break-words text-sm font-semibold text-[var(--color-text)]">{{ template.label }}</span>
-                    <span class="max-w-full break-all rounded-full px-2.5 py-1 text-xs font-medium sm:self-start" :class="cn(template.accentClass)">
+                    <span class="min-w-0 text-sm font-semibold break-words text-[var(--color-text)]">{{ template.label }}</span>
+                    <span class="max-w-full rounded-full px-2.5 py-1 text-xs font-medium break-all sm:self-start" :class="cn(template.accentClass)">
                       {{ template.id }}
                     </span>
                   </div>
-                  <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">{{ template.description }}</p>
+                  <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
+                    {{ template.description }}
+                  </p>
                 </button>
               </div>
 
@@ -429,13 +418,17 @@ onUnmounted(() => {
                   :class="selectableCardClass(selectedAspectRatio === ratio.id, 'border-primary bg-primary/8')"
                   @click="selectedAspectRatio = ratio.id"
                 >
-                  <p class="text-sm font-semibold text-[var(--color-text)]">{{ ratio.label }}</p>
-                  <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{{ ratio.description }}</p>
+                  <p class="text-sm font-semibold text-[var(--color-text)]">
+                    {{ ratio.label }}
+                  </p>
+                  <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                    {{ ratio.description }}
+                  </p>
                 </button>
               </div>
 
               <label class="mt-5 inline-flex items-center gap-3 text-sm text-[var(--color-text)]">
-                <input v-model="includeTitle" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]" />
+                <input v-model="includeTitle" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]">
                 在首版输出中保留活动标题
               </label>
 
@@ -461,8 +454,8 @@ onUnmounted(() => {
                   :disabled="!activity.is_generatable || !authStore.isActive || !selectedTemplateKey || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
                   @click="createArtJob"
                 >
-                  <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="w-4 h-4 mr-2 animate-spin" />
-                  <WandSparkles v-else class="w-4 h-4 mr-2" />
+                  <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="mr-2 h-4 w-4 animate-spin" />
+                  <WandSparkles v-else class="mr-2 h-4 w-4" />
                   {{
                     artJobsStore.creating
                       ? '正在创建任务...'
@@ -481,13 +474,15 @@ onUnmounted(() => {
           </div>
         </article>
 
-        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">
-            <Sparkles class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <Sparkles class="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div class="min-w-0 flex-1">
-              <h2 class="text-base font-semibold text-[var(--color-text)]">生成任务</h2>
+              <h2 class="text-base font-semibold text-[var(--color-text)]">
+                生成任务
+              </h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                当前活动下的任务会先记录在 `art_jobs`，后续生成完成后再关联到结果页。
+                当前活动下的任务会记录生成状态；如果任务已经完成，这里会直接显示对应的生成图片。
               </p>
 
               <div v-if="artJobsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
@@ -499,93 +494,18 @@ onUnmounted(() => {
               </div>
 
               <div v-else class="mt-5 grid gap-3">
-                <div
+                <ArtJobCard
                   v-for="job in artJobsStore.jobs"
                   :key="job.id"
-                  class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
-                >
-                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div class="min-w-0">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="min-w-0 break-words text-sm font-semibold text-[var(--color-text)]">{{ formatArtPromptTemplateLabel(job.style_preset) }}</span>
-                        <span
-                          class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-                          :class="jobStatusClass(job.status)"
-                        >
-                          {{ jobStatusLabel(job.status) }}
-                        </span>
-                        <span v-if="artJobsStore.activeJob?.id === job.id" class="inline-flex items-center rounded-full bg-amber-500/12 px-2.5 py-1 text-xs font-medium text-amber-600">
-                          当前活动中的任务
-                        </span>
-                      </div>
-                      <p class="mt-2 text-sm text-[var(--color-text-muted)]">
-                        排队时间：{{ getJobTimestamp(job) ? formatDateTime(getJobTimestamp(job)) : '暂无时间信息' }}
-                      </p>
-                      <p v-if="job.error_message" class="mt-2 text-sm text-red-500">
-                        {{ job.error_message }}
-                      </p>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-muted)]">
-                      <CheckCircle2 class="w-4 h-4" />
-                      {{ getAspectRatioLabel(job.render_options_json) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-          <div class="flex items-start gap-3">
-            <Sparkles class="w-5 h-5 mt-1 text-primary shrink-0" />
-            <div class="min-w-0 flex-1">
-              <h2 class="text-base font-semibold text-[var(--color-text)]">生成结果</h2>
-                <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                  这里会展示当前 provider 产出的结果图。已配置 `doubao-seedream-5-0-260128` 时会优先走真实生成，否则会自动显示 mock 回退结果。
-                </p>
-
-              <div v-if="artResultsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                正在读取结果列表...
+                  :job="job"
+                  :is-active="artJobsStore.activeJob?.id === job.id"
+                  @open-result="openResult"
+                />
               </div>
 
-              <div v-else-if="artResultsStore.results.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
-                还没有成品结果。创建一个任务后，这里会出现结果预览和详情入口。
-              </div>
-
-              <div v-else class="mt-5 grid gap-4 md:grid-cols-2">
-                <button
-                  v-for="result in artResultsStore.results"
-                  :key="result.id"
-                  type="button"
-                  class="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4 text-left transition hover:border-primary/40"
-                  @click="openResult(result.id)"
-                >
-                  <img
-                    :src="result.thumbnail_data_uri || result.image_data_uri"
-                    :alt="result.title_snapshot || 'Art result thumbnail'"
-                    class="h-52 w-full rounded-[18px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] object-cover"
-                  />
-
-                  <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div class="min-w-0">
-                      <p class="text-sm font-semibold text-[var(--color-text)] truncate">
-                        {{ result.title_snapshot || 'Untitled result' }}
-                      </p>
-                      <p class="mt-2 text-sm text-[var(--color-text-muted)] line-clamp-2">
-                        {{ result.subtitle_snapshot || '暂无副标题' }}
-                      </p>
-                    </div>
-                    <span class="inline-flex max-w-full items-center self-start break-all rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {{ formatArtPromptTemplateLabel(result.style_preset) }}
-                    </span>
-                  </div>
-
-                  <div class="mt-4 flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-                    查看详情
-                    <ExternalLink class="w-4 h-4" />
-                  </div>
+              <div v-if="hasJobResults" class="mt-5 flex justify-start">
+                <button type="button" class="btn btn-ghost w-full justify-center sm:w-auto" @click="openAllResults">
+                  查看更多结果
                 </button>
               </div>
             </div>

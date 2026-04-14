@@ -1,9 +1,10 @@
-import PocketBase, { type RecordService } from 'pocketbase'
-import { Collections } from '@/types/pocketbase.generated'
+import type { RecordService } from 'pocketbase'
 import type { Activity, ActivityStream, ArtJob, ArtPromptTemplate, ArtResult, StravaConnection, SyncEvent, TypedPocketBase, User } from '@/types/pocketbase'
+import PocketBase from 'pocketbase'
+import { Collections } from '@/types/pocketbase.generated'
 
 const getPBUrl = () => {
-  if (import.meta.env.VITE_PB_URL) return import.meta.env.VITE_PB_URL
+  if (import.meta.env.VITE_PB_URL) { return import.meta.env.VITE_PB_URL }
   if (typeof window !== 'undefined') {
     return window.location.origin
   }

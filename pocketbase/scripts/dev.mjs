@@ -1,6 +1,5 @@
 import { access } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { spawn } from 'node:child_process'
@@ -35,10 +34,10 @@ const canExecute = async (target) => {
 
 const resolveExecutable = async () => {
   const envExecutable = process.env.PB_EXECUTABLE
-  if (envExecutable) return envExecutable
+  if (envExecutable) { return envExecutable }
 
   const localBinary = path.resolve(pocketbaseDir, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase')
-  if (await canExecute(localBinary)) return localBinary
+  if (await canExecute(localBinary)) { return localBinary }
 
   return 'pocketbase'
 }
@@ -49,9 +48,12 @@ const adminPassword = process.env.PB_ADMIN_PASSWORD
 const hooksWatchEnabled = String(process.env.PB_HOOKS_WATCH || 'false').toLowerCase() === 'true'
 
 const sharedFlags = [
-  '--dir', dataDir,
-  '--migrationsDir', migrationsDir,
-  '--hooksDir', hooksDir,
+  '--dir',
+  dataDir,
+  '--migrationsDir',
+  migrationsDir,
+  '--hooksDir',
+  hooksDir,
   `--hooksWatch=${hooksWatchEnabled ? 'true' : 'false'}`,
 ]
 

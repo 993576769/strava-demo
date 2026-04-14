@@ -1,5 +1,6 @@
 declare module '@mapbox/polyline' {
   interface PolylineCodec {
+    // eslint-disable-next-line ts/method-signature-style
     decode(encoded: string, precision?: number): Array<[number, number]>
   }
 

@@ -1,32 +1,34 @@
+import type { ActivityStream } from '@/types/pocketbase'
+import { useQuery } from '@pinia/colada'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { activityStreamsCollection } from '@/lib/pocketbase'
-import { isActivityStream, type ActivityStream } from '@/types/pocketbase'
+import { isActivityStream } from '@/types/pocketbase'
 
 export const useActivityStreamsStore = defineStore('activityStreams', () => {
-  const currentStream = ref<ActivityStream | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const currentActivityId = ref('')
+
+  const streamQuery = useQuery<ActivityStream | null, Error>({
+    key: () => ['activity-streams', currentActivityId.value || '__idle__'],
+    enabled: computed(() => currentActivityId.value.length > 0),
+    query: async () => {
+      const record = await activityStreamsCollection().getFirstListItem(`activity = "${currentActivityId.value}"`)
+      return isActivityStream(record) ? record : null
+    },
+    refetchOnWindowFocus: false,
+  })
+
+  const currentStream = computed(() => currentActivityId.value ? (streamQuery.data.value ?? null) : null)
+  const loading = computed(() => currentActivityId.value.length > 0 && streamQuery.isLoading.value)
+  const error = computed(() => streamQuery.error.value ? '读取活动轨迹失败' : null)
 
   const fetchStreamForActivity = async (activityId: string) => {
-    loading.value = true
-    error.value = null
-
-    try {
-      const record = await activityStreamsCollection().getFirstListItem(`activity = "${activityId}"`)
-      currentStream.value = isActivityStream(record) ? record : null
-    } catch (value) {
-      console.error(value)
-      currentStream.value = null
-      error.value = '读取活动轨迹失败'
-    } finally {
-      loading.value = false
-    }
+    currentActivityId.value = activityId
+    await streamQuery.refetch()
   }
 
   const clear = () => {
-    currentStream.value = null
-    error.value = null
+    currentActivityId.value = ''
   }
 
   return {

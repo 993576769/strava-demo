@@ -1,64 +1,66 @@
+import type { ArtPromptTemplate } from '@/types/pocketbase'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { artPromptTemplatesCollection, pb } from '@/lib/pocketbase'
 import { toArtPromptTemplateOption } from '@/lib/art-prompt-templates'
-import { isArtPromptTemplate, type ArtPromptTemplate } from '@/types/pocketbase'
+import { artPromptTemplatesCollection, pb } from '@/lib/pocketbase'
+import { isArtPromptTemplate } from '@/types/pocketbase'
+
+type SaveTemplatePayload = Partial<Pick<ArtPromptTemplate, 'prompt_template' | 'reference_image_url' | 'notes' | 'is_active'>>
+
+interface UploadReferenceImagePayload {
+  templateId: string
+  dataUrl: string
+  fileName: string
+}
+
+const listTemplates = async (includeInactive: boolean) => {
+  const filter = includeInactive
+    ? 'provider = "doubao-seedream"'
+    : 'provider = "doubao-seedream" && is_active = true'
+
+  const result = await artPromptTemplatesCollection().getFullList({
+    filter,
+    sort: 'template_key',
+  })
+
+  return result.filter(isArtPromptTemplate)
+}
 
 export const useArtPromptTemplatesStore = defineStore('artPromptTemplates', () => {
-  const templates = ref<ArtPromptTemplate[]>([])
-  const loading = ref(false)
-  const uploadingReferenceImage = ref(false)
-  const error = ref<string | null>(null)
+  const queryCache = useQueryCache()
+  const includeInactive = ref(false)
 
-  const options = computed(() => templates.value.map(toArtPromptTemplateOption))
-  const defaultTemplateKey = computed(() => options.value[0]?.id ?? '')
+  const templatesQuery = useQuery<ArtPromptTemplate[], Error>({
+    key: () => ['art-prompt-templates', { includeInactive: includeInactive.value }],
+    query: () => listTemplates(includeInactive.value),
+    refetchOnWindowFocus: false,
+  })
 
-  const fetchTemplates = async (options?: { includeInactive?: boolean }) => {
-    loading.value = true
-    error.value = null
-
-    try {
-      const filter = options?.includeInactive
-        ? 'provider = "doubao-seedream"'
-        : 'provider = "doubao-seedream" && is_active = true'
-      const result = await artPromptTemplatesCollection().getFullList({
-        filter,
-        sort: 'template_key',
-      })
-
-      templates.value = result.filter(isArtPromptTemplate)
-    } catch (value) {
-      console.error(value)
-      templates.value = []
-      error.value = '读取生成模板失败'
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const saveTemplate = async (id: string, payload: Partial<Pick<ArtPromptTemplate, 'prompt_template' | 'reference_image_url' | 'notes' | 'is_active'>>) => {
-    error.value = null
-
-    try {
+  const saveTemplateMutation = useMutation<ArtPromptTemplate, { id: string, payload: SaveTemplatePayload }, Error>({
+    mutation: async ({ id, payload }) => {
       const updated = await artPromptTemplatesCollection().update(id, payload)
-      if (!isArtPromptTemplate(updated)) {
-        throw new Error('Invalid template response')
-      }
+      if (!isArtPromptTemplate(updated)) { throw new Error('Invalid template response') }
 
-      templates.value = templates.value.map(template => template.id === updated.id ? updated : template)
       return updated
-    } catch (value) {
-      console.error(value)
-      error.value = value instanceof Error ? value.message : '保存模板失败'
-      return null
-    }
-  }
+    },
+    onSuccess: (updated) => {
+      const keys = [
+        ['art-prompt-templates', { includeInactive: false }],
+        ['art-prompt-templates', { includeInactive: true }],
+      ] as const
 
-  const uploadReferenceImage = async (templateId: string, dataUrl: string, fileName: string) => {
-    uploadingReferenceImage.value = true
-    error.value = null
+      for (const key of keys) {
+        queryCache.setQueryData(key, (previous) => {
+          if (!Array.isArray(previous)) { return previous }
+          return previous.map(template => template.id === updated.id ? updated : template)
+        })
+      }
+    },
+  })
 
-    try {
+  const uploadReferenceImageMutation = useMutation<{ template: ArtPromptTemplate, referenceImageUrl: string }, UploadReferenceImagePayload, Error>({
+    mutation: async ({ templateId, dataUrl, fileName }) => {
       const response = await pb.send<{ template?: unknown, referenceImageUrl?: string }>(`/api/admin/art-prompt-templates/${templateId}/reference-image`, {
         method: 'POST',
         headers: {
@@ -71,27 +73,76 @@ export const useArtPromptTemplatesStore = defineStore('artPromptTemplates', () =
       })
 
       const template = isArtPromptTemplate(response.template) ? response.template : null
-      if (!template) {
-        throw new Error('Invalid template response')
-      }
+      if (!template) { throw new Error('Invalid template response') }
 
-      templates.value = templates.value.map(item => item.id === template.id ? template : item)
       return {
         template,
         referenceImageUrl: response.referenceImageUrl ?? template.reference_image_url ?? '',
       }
-    } catch (value) {
+    },
+    onSuccess: ({ template }) => {
+      const keys = [
+        ['art-prompt-templates', { includeInactive: false }],
+        ['art-prompt-templates', { includeInactive: true }],
+      ] as const
+
+      for (const key of keys) {
+        queryCache.setQueryData(key, (previous) => {
+          if (!Array.isArray(previous)) { return previous }
+          return previous.map(item => item.id === template.id ? template : item)
+        })
+      }
+    },
+  })
+
+  const templates = computed(() => templatesQuery.data.value ?? [])
+  const options = computed(() => templates.value.map(toArtPromptTemplateOption))
+  const loading = computed(() => templatesQuery.isLoading.value)
+  const uploadingReferenceImage = computed(() => uploadReferenceImageMutation.isLoading.value)
+  const error = computed(() => {
+    if (uploadReferenceImageMutation.error.value) { return uploadReferenceImageMutation.error.value.message || '上传参考图失败' }
+
+    if (saveTemplateMutation.error.value) { return saveTemplateMutation.error.value.message || '保存模板失败' }
+
+    if (templatesQuery.error.value) { return '读取生成模板失败' }
+
+    return null
+  })
+  const defaultTemplateKey = computed(() => options.value[0]?.id ?? '')
+
+  const fetchTemplates = async (options?: { includeInactive?: boolean }) => {
+    includeInactive.value = !!options?.includeInactive
+    await templatesQuery.refetch()
+  }
+
+  const saveTemplate = async (id: string, payload: SaveTemplatePayload) => {
+    try {
+      return await saveTemplateMutation.mutateAsync({ id, payload })
+    }
+    catch (value) {
       console.error(value)
-      error.value = value instanceof Error ? value.message : '上传参考图失败'
       return null
-    } finally {
-      uploadingReferenceImage.value = false
+    }
+  }
+
+  const uploadReferenceImage = async (templateId: string, dataUrl: string, fileName: string) => {
+    try {
+      return await uploadReferenceImageMutation.mutateAsync({
+        templateId,
+        dataUrl,
+        fileName,
+      })
+    }
+    catch (value) {
+      console.error(value)
+      return null
     }
   }
 
   const clear = () => {
-    templates.value = []
-    error.value = null
+    includeInactive.value = false
+    saveTemplateMutation.reset()
+    uploadReferenceImageMutation.reset()
   }
 
   return {

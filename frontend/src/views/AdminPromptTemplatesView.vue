@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { ArrowLeft, ImageUp, Loader2, Save, ShieldCheck } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, ImageUp, Loader2, Save, ShieldCheck } from 'lucide-vue-next'
 import { useArtPromptTemplatesStore } from '@/stores/art-prompt-templates'
 
 const router = useRouter()
@@ -58,7 +58,7 @@ const loadTemplates = async () => {
 }
 
 const saveTemplate = async () => {
-  if (!selectedTemplate.value) return
+  if (!selectedTemplate.value) { return }
 
   saving.value = true
   saveFeedback.value = ''
@@ -118,20 +118,22 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <button class="btn btn-ghost" @click="router.push({ name: 'home' })">
-          <ArrowLeft class="w-4 h-4 mr-2" />
+          <ArrowLeft class="mr-2 h-4 w-4" />
           返回首页
         </button>
       </div>
 
       <section class="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">
-            <ShieldCheck class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <ShieldCheck class="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div class="min-w-0 flex-1">
-              <h1 class="text-xl font-semibold text-[var(--color-text)]">Prompt 模板管理</h1>
+              <h1 class="text-xl font-semibold text-[var(--color-text)]">
+                Prompt 模板管理
+              </h1>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                 这里直接编辑 `art_prompt_templates`。普通用户只读，管理员可修改 prompt、参考图和启用状态。
               </p>
@@ -161,21 +163,29 @@ onMounted(() => {
                   {{ template.is_active ? 'active' : 'inactive' }}
                 </span>
               </div>
-              <p class="mt-2 text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{{ template.provider }}</p>
-              <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">{{ template.notes || '暂无备注' }}</p>
+              <p class="mt-2 text-xs tracking-[0.18em] text-[var(--color-text-muted)] uppercase">
+                {{ template.provider }}
+              </p>
+              <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
+                {{ template.notes || '暂无备注' }}
+              </p>
             </button>
           </div>
         </article>
 
-        <article class="rounded-[32px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div v-if="!selectedTemplate" class="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
             先从左侧选择一个模板。
           </div>
 
           <div v-else class="grid gap-5">
             <div>
-              <p class="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Template Key</p>
-              <p class="mt-2 text-sm font-semibold text-[var(--color-text)]">{{ selectedTemplate.template_key }}</p>
+              <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
+                Template Key
+              </p>
+              <p class="mt-2 text-sm font-semibold text-[var(--color-text)]">
+                {{ selectedTemplate.template_key }}
+              </p>
             </div>
 
             <label class="grid gap-2">
@@ -186,13 +196,13 @@ onMounted(() => {
                 accept="image/png,image/jpeg,image/webp"
                 class="hidden"
                 @change="handleReferenceImageSelected"
-              />
+              >
               <input
                 v-model="draftReferenceImageUrl"
                 type="text"
                 class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55 px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-primary"
                 placeholder="https://..."
-              />
+              >
               <div class="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -200,8 +210,8 @@ onMounted(() => {
                   :disabled="artPromptTemplatesStore.uploadingReferenceImage"
                   @click="triggerFilePicker"
                 >
-                  <Loader2 v-if="artPromptTemplatesStore.uploadingReferenceImage" class="w-4 h-4 mr-2 animate-spin" />
-                  <ImageUp v-else class="w-4 h-4 mr-2" />
+                  <Loader2 v-if="artPromptTemplatesStore.uploadingReferenceImage" class="mr-2 h-4 w-4 animate-spin" />
+                  <ImageUp v-else class="mr-2 h-4 w-4" />
                   {{ artPromptTemplatesStore.uploadingReferenceImage ? '正在上传参考图...' : '上传图片并自动更新 URL' }}
                 </button>
                 <p class="text-sm text-[var(--color-text-muted)]">
@@ -213,7 +223,7 @@ onMounted(() => {
                 :src="draftReferenceImageUrl"
                 alt="Reference preview"
                 class="mt-2 h-40 w-full rounded-[20px] border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)] object-cover"
-              />
+              >
             </label>
 
             <label class="grid gap-2">
@@ -223,7 +233,7 @@ onMounted(() => {
                 type="text"
                 class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55 px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-primary"
                 placeholder="模板说明"
-              />
+              >
             </label>
 
             <label class="grid gap-2">
@@ -231,12 +241,12 @@ onMounted(() => {
               <textarea
                 v-model="draftPrompt"
                 rows="16"
-                class="w-full rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55 px-4 py-4 text-sm leading-7 text-[var(--color-text)] outline-none focus:border-primary"
+                class="w-full rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55 px-4 py-4 text-sm leading-7 text-[var(--color-text)] outline-none focus:border-primary"
               />
             </label>
 
             <label class="inline-flex items-center gap-3 text-sm text-[var(--color-text)]">
-              <input v-model="draftIsActive" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]" />
+              <input v-model="draftIsActive" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]">
               设为启用模板
             </label>
 
@@ -246,8 +256,8 @@ onMounted(() => {
 
             <div class="flex flex-wrap items-center gap-3">
               <button class="btn btn-primary" :disabled="saving" @click="saveTemplate">
-                <Loader2 v-if="saving" class="w-4 h-4 mr-2 animate-spin" />
-                <Save v-else class="w-4 h-4 mr-2" />
+                <Loader2 v-if="saving" class="mr-2 h-4 w-4 animate-spin" />
+                <Save v-else class="mr-2 h-4 w-4" />
                 {{ saving ? '正在保存...' : '保存模板' }}
               </button>
               <p class="text-sm text-[var(--color-text-muted)]">

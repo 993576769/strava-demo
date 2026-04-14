@@ -1,15 +1,16 @@
+import type { RecordService } from 'pocketbase'
+import type { User, UserCreate, UserUpdate } from '@/types/pocketbase'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { RecordService } from 'pocketbase'
 import { pb, usersCollection } from '@/lib/pocketbase'
-import { isUser, type User, type UserCreate, type UserUpdate } from '@/types/pocketbase'
+import { isUser } from '@/types/pocketbase'
 
 const toUserRecord = (value: unknown): User | null => {
   return isUser(value) ? value : null
 }
 
 type OAuthRecordService = RecordService<User> & {
-  authWithOAuth2: (options: { provider: string }) => Promise<{ record?: unknown; meta?: Record<string, unknown> }>
+  authWithOAuth2: (options: { provider: string }) => Promise<{ record?: unknown, meta?: Record<string, unknown> }>
 }
 
 const usernameAdjectives = [
@@ -35,6 +36,7 @@ const usernameNouns = [
 ] as const
 
 const generatedUsernamePattern = new RegExp(
+  // eslint-disable-next-line regexp/no-unused-capturing-group
   `^(${usernameAdjectives.join('|')})-(${usernameNouns.join('|')})-[a-z0-9]{4}$`,
 )
 
@@ -46,7 +48,7 @@ const generateRandomUsername = (userId: string) => {
 }
 
 const normalizeUsername = (value: unknown) => {
-  if (typeof value !== 'string') return null
+  if (typeof value !== 'string') { return null }
 
   const normalized = value
     .trim()
@@ -60,11 +62,11 @@ const normalizeUsername = (value: unknown) => {
 
 const getOAuthUsername = (meta?: Record<string, unknown>) => {
   return normalizeUsername(
-    meta?.username ??
-    meta?.login ??
-    meta?.preferred_username ??
-    meta?.name ??
-    meta?.displayName,
+    meta?.username
+    ?? meta?.login
+    ?? meta?.preferred_username
+    ?? meta?.name
+    ?? meta?.displayName,
   )
 }
 
@@ -76,14 +78,14 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
 
   const ensureUsername = async (candidate: User | null, oauthMeta?: Record<string, unknown>) => {
-    if (!candidate) return candidate
+    if (!candidate) { return candidate }
 
     const oauthUsername = getOAuthUsername(oauthMeta)
     const nextName = shouldReplaceGeneratedName(candidate.name)
       ? (oauthUsername ?? generateRandomUsername(candidate.id))
       : null
 
-    if (!nextName || candidate.name === nextName) return candidate
+    if (!nextName || candidate.name === nextName) { return candidate }
 
     const payload: UserUpdate = {
       name: nextName,
@@ -124,7 +126,7 @@ export const useAuthStore = defineStore('auth', () => {
       password,
       passwordConfirm: password,
     }
-    if (name) payload.name = name
+    if (name) { payload.name = name }
 
     const newUser = await usersCollection().create(payload)
     await login(email, password)
@@ -145,14 +147,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const refresh = async () => {
-    if (!pb.authStore.isValid) return
+    if (!pb.authStore.isValid) { return }
     const fresh = await usersCollection().authRefresh()
     user.value = toUserRecord(fresh.record)
     await ensureUsername(user.value)
   }
 
   const getAvatarUrl = () => {
-    if (!user.value?.avatar) return null
+    if (!user.value?.avatar) { return null }
     return pb.files.getURL(user.value, user.value.avatar)
   }
 

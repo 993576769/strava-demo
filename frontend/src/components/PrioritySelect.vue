@@ -22,12 +22,12 @@ const priorityClass = (value: number, color: string) => cn(
       v-for="p in priorities"
       :key="p.value"
       type="button"
-      class="p-2.5 sm:p-2 rounded-lg sm:rounded-xl transition-all duration-200 cursor-pointer min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 flex items-center justify-center"
+      class="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg p-2.5 transition-all duration-200 sm:min-h-0 sm:min-w-0 sm:rounded-xl sm:p-2"
       :class="priorityClass(p.value, p.color)"
       :title="p.label"
       @click="priority = p.value"
     >
-      <Flag class="w-4 h-4" />
+      <Flag class="h-4 w-4" />
     </button>
   </div>
 </template>

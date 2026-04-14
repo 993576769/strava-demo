@@ -1,6 +1,6 @@
+import type { RouteLocationNormalizedGeneric, RouteLocationRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import type { RouteLocationNormalizedGeneric, RouteLocationRaw } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -9,45 +9,51 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: () => import('@/views/HomeView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     {
       path: '/activities',
       name: 'activities',
       component: () => import('@/views/ActivitiesView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     {
       path: '/activities/:id',
       name: 'activity-detail',
       component: () => import('@/views/ActivityDetailView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/activities/:id/results',
+      name: 'activity-results',
+      component: () => import('@/views/ActivityResultsView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/results/:id',
       name: 'art-result-detail',
       component: () => import('@/views/ArtResultView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/prompt-templates',
       name: 'admin-prompt-templates',
       component: () => import('@/views/AdminPromptTemplatesView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/dev/webhook-status',
       name: 'webhook-status',
       component: () => import('@/views/WebhookStatusView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
-      meta: { guest: true }
-    }
-  ]
+      meta: { guest: true },
+    },
+  ],
 })
 
 const resolveGuestRedirect = (to: RouteLocationNormalizedGeneric): RouteLocationRaw => {
@@ -66,7 +72,8 @@ router.beforeEach(async (to, _from, next) => {
   if (auth.isLoggedIn) {
     try {
       await auth.refresh()
-    } catch {
+    }
+    catch {
       auth.logout()
     }
   }

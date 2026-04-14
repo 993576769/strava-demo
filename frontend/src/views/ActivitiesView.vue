@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Antenna, ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Antenna, ArrowRight, CheckCircle2, Download, Link2, RefreshCw, Route, Sparkles, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
 import { useActivitiesStore } from '@/stores/activities'
 import { useStravaStore } from '@/stores/strava'
@@ -98,7 +98,7 @@ const eventStatusLabel = (status: string) => {
   }
 }
 
-const eventTimestamp = (value: { occurred_at?: string; created?: string }) => value.occurred_at || value.created || ''
+const eventTimestamp = (value: { occurred_at?: string, created?: string }) => value.occurred_at || value.created || ''
 
 const openActivity = (id: string) => {
   router.push({ name: 'activity-detail', params: { id } })
@@ -144,36 +144,40 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <section class="flex flex-col gap-6">
-        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p class="text-xs uppercase tracking-[0.26em] text-[var(--color-text-muted)]">Activities</p>
-            <h1 class="text-2xl sm:text-3xl font-semibold text-[var(--color-text)] mt-2">本地活动列表</h1>
-            <p class="text-[var(--color-text-muted)] mt-3 leading-7 max-w-2xl">
+            <p class="text-xs tracking-[0.26em] text-[var(--color-text-muted)] uppercase">
+              Activities
+            </p>
+            <h1 class="mt-2 text-2xl font-semibold text-[var(--color-text)] sm:text-3xl">
+              本地活动列表
+            </h1>
+            <p class="mt-3 max-w-2xl leading-7 text-[var(--color-text-muted)]">
               这里读取的是本地同步后的活动数据，不直接从前端实时请求 Strava。阶段 2 的目标是先把连接状态、活动列表和详情页跑通。
             </p>
           </div>
 
           <div class="flex flex-wrap gap-3">
             <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="stravaStore.startConnection">
-              <Link2 class="w-4 h-4 mr-2" />
+              <Link2 class="mr-2 h-4 w-4" />
               {{ stravaStore.connecting ? '正在跳转到 Strava...' : '连接 Strava' }}
             </button>
             <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
-              <Download class="w-4 h-4 mr-2" />
+              <Download class="mr-2 h-4 w-4" />
               {{ stravaStore.syncing ? '正在同步活动...' : '同步活动' }}
             </button>
             <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnectStrava">
-              <Unplug class="w-4 h-4 mr-2" />
+              <Unplug class="mr-2 h-4 w-4" />
               {{ stravaStore.disconnecting ? '正在断开连接...' : '断开 Strava' }}
             </button>
             <button class="btn btn-ghost" @click="refreshPage">
-              <RefreshCw class="w-4 h-4 mr-2" />
+              <RefreshCw class="mr-2 h-4 w-4" />
               刷新状态
             </button>
             <button class="btn btn-ghost" @click="openWebhookStatus">
-              <Antenna class="w-4 h-4 mr-2" />
+              <Antenna class="mr-2 h-4 w-4" />
               Webhook 状态
             </button>
           </div>
@@ -181,8 +185,12 @@ onMounted(async () => {
 
         <section class="grid gap-4 md:grid-cols-3">
           <div class="rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-            <p class="text-xs uppercase tracking-[0.22em] text-[var(--color-text-muted)]">Strava</p>
-            <p class="mt-2 text-base font-semibold text-[var(--color-text)]">{{ stravaStore.statusLabel }}</p>
+            <p class="text-xs tracking-[0.22em] text-[var(--color-text-muted)] uppercase">
+              Strava
+            </p>
+            <p class="mt-2 text-base font-semibold text-[var(--color-text)]">
+              {{ stravaStore.statusLabel }}
+            </p>
             <p class="mt-2 text-sm text-[var(--color-text-muted)]">
               {{
                 stravaStore.athleteLabel
@@ -193,15 +201,27 @@ onMounted(async () => {
           </div>
 
           <div class="rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-            <p class="text-xs uppercase tracking-[0.22em] text-[var(--color-text-muted)]">活动总数</p>
-            <p class="mt-2 text-base font-semibold text-[var(--color-text)]">{{ activitiesStore.activities.length }}</p>
-            <p class="mt-2 text-sm text-[var(--color-text-muted)]">本地已读取的活动记录</p>
+            <p class="text-xs tracking-[0.22em] text-[var(--color-text-muted)] uppercase">
+              活动总数
+            </p>
+            <p class="mt-2 text-base font-semibold text-[var(--color-text)]">
+              {{ activitiesStore.activities.length }}
+            </p>
+            <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+              本地已读取的活动记录
+            </p>
           </div>
 
           <div class="rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-            <p class="text-xs uppercase tracking-[0.22em] text-[var(--color-text-muted)]">可生成活动</p>
-            <p class="mt-2 text-base font-semibold text-[var(--color-text)]">{{ activitiesStore.generatableActivities.length }}</p>
-            <p class="mt-2 text-sm text-[var(--color-text-muted)]">满足当前轨迹生成条件</p>
+            <p class="text-xs tracking-[0.22em] text-[var(--color-text-muted)] uppercase">
+              可生成活动
+            </p>
+            <p class="mt-2 text-base font-semibold text-[var(--color-text)]">
+              {{ activitiesStore.generatableActivities.length }}
+            </p>
+            <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+              满足当前轨迹生成条件
+            </p>
           </div>
         </section>
 
@@ -218,11 +238,11 @@ onMounted(async () => {
           </p>
           <div class="mt-3 flex flex-wrap gap-3">
             <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="stravaStore.startConnection">
-              <Link2 class="w-4 h-4 mr-2" />
+              <Link2 class="mr-2 h-4 w-4" />
               {{ stravaStore.needsReauthorization ? '重新授权 Strava' : '重新连接 Strava' }}
             </button>
             <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnectStrava">
-              <Unplug class="w-4 h-4 mr-2" />
+              <Unplug class="mr-2 h-4 w-4" />
               断开当前连接
             </button>
           </div>
@@ -234,11 +254,15 @@ onMounted(async () => {
           :class="stravaNoticeClass(stravaNotice.tone)"
         >
           <div class="flex items-start gap-3">
-            <CheckCircle2 v-if="stravaNotice.tone === 'success'" class="w-5 h-5 mt-0.5 shrink-0" />
-            <TriangleAlert v-else class="w-5 h-5 mt-0.5 shrink-0" />
+            <CheckCircle2 v-if="stravaNotice.tone === 'success'" class="mt-0.5 h-5 w-5 shrink-0" />
+            <TriangleAlert v-else class="mt-0.5 h-5 w-5 shrink-0" />
             <div>
-              <p class="text-sm font-semibold">{{ stravaNotice.title }}</p>
-              <p class="mt-1 text-sm leading-6">{{ stravaNotice.description }}</p>
+              <p class="text-sm font-semibold">
+                {{ stravaNotice.title }}
+              </p>
+              <p class="mt-1 text-sm leading-6">
+                {{ stravaNotice.description }}
+              </p>
             </div>
           </div>
         </div>
@@ -248,35 +272,39 @@ onMounted(async () => {
         </div>
 
         <div v-if="stravaStore.syncSummary" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-700">
-          <p class="font-semibold">同步完成</p>
+          <p class="font-semibold">
+            同步完成
+          </p>
           <p class="mt-1 leading-6">
             本次抓取 {{ stravaStore.syncSummary.fetched }} 条活动，新增 {{ stravaStore.syncSummary.created }} 条，更新 {{ stravaStore.syncSummary.updated }} 条，可生成 {{ stravaStore.syncSummary.generatable }} 条。
           </p>
         </div>
 
-        <section v-if="!hasActivities && !activitiesStore.loading" class="rounded-[32px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-card)]/70 p-8 sm:p-10 text-center">
-          <div class="mx-auto w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center">
-            <Route class="w-8 h-8" />
+        <section v-if="!hasActivities && !activitiesStore.loading" class="rounded-4xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-card)]/70 p-8 text-center sm:p-10">
+          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 text-primary">
+            <Route class="h-8 w-8" />
           </div>
-          <h2 class="mt-5 text-xl font-semibold text-[var(--color-text)]">还没有本地活动数据</h2>
-          <p class="mt-3 text-[var(--color-text-muted)] leading-7 max-w-xl mx-auto">
+          <h2 class="mt-5 text-xl font-semibold text-[var(--color-text)]">
+            还没有本地活动数据
+          </h2>
+          <p class="mx-auto mt-3 max-w-xl leading-7 text-[var(--color-text-muted)]">
             这通常意味着你还没连接 Strava，或者授权刚完成但首次同步任务还没接上。当前阶段先把连接回流和本地活动读取边界搭起来。
           </p>
           <div class="mt-6 flex flex-wrap justify-center gap-3">
             <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="stravaStore.startConnection">
-              <Link2 class="w-4 h-4 mr-2" />
+              <Link2 class="mr-2 h-4 w-4" />
               {{ stravaStore.connecting ? '正在跳转到 Strava...' : '开始连接 Strava' }}
             </button>
             <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
-              <Download class="w-4 h-4 mr-2" />
+              <Download class="mr-2 h-4 w-4" />
               {{ stravaStore.syncing ? '正在同步活动...' : '同步首批活动' }}
             </button>
             <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnectStrava">
-              <Unplug class="w-4 h-4 mr-2" />
+              <Unplug class="mr-2 h-4 w-4" />
               {{ stravaStore.disconnecting ? '正在断开连接...' : '断开连接' }}
             </button>
             <button class="btn btn-ghost" @click="refreshPage">
-              <RefreshCw class="w-4 h-4 mr-2" />
+              <RefreshCw class="mr-2 h-4 w-4" />
               重新读取状态
             </button>
           </div>
@@ -290,12 +318,14 @@ onMounted(async () => {
           <article
             v-for="activity in activitiesStore.activities"
             :key="activity.id"
-            class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 sm:p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]"
+            class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6"
           >
-            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <h2 class="text-lg font-semibold text-[var(--color-text)]">{{ activity.name }}</h2>
+                  <h2 class="text-lg font-semibold text-[var(--color-text)]">
+                    {{ activity.name }}
+                  </h2>
                   <span class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                     {{ activity.sport_type || 'unknown' }}
                   </span>
@@ -322,10 +352,10 @@ onMounted(async () => {
                 </p>
               </div>
 
-              <div class="flex items-center gap-3 shrink-0">
+              <div class="flex shrink-0 items-center gap-3">
                 <button class="btn btn-ghost" @click="openActivity(activity.id)">
                   查看详情
-                  <ArrowRight class="w-4 h-4 ml-2" />
+                  <ArrowRight class="ml-2 h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -334,9 +364,11 @@ onMounted(async () => {
 
         <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">
-            <Sparkles class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <Sparkles class="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div>
-              <h2 class="text-base font-semibold text-[var(--color-text)]">阶段 2 说明</h2>
+              <h2 class="text-base font-semibold text-[var(--color-text)]">
+                阶段 2 说明
+              </h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                 当前活动页已经可以读取本地 collections，也支持发起真实 Strava 首次同步。下一步会继续补 webhook 和更稳定的增量同步。
               </p>
@@ -346,9 +378,11 @@ onMounted(async () => {
 
         <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">
-            <RefreshCw class="w-5 h-5 mt-1 text-primary shrink-0" />
+            <RefreshCw class="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div class="min-w-0 flex-1">
-              <h2 class="text-base font-semibold text-[var(--color-text)]">最近事件</h2>
+              <h2 class="text-base font-semibold text-[var(--color-text)]">
+                最近事件
+              </h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                 这里会记录最近一次同步、webhook 更新和连接变更，方便联调时快速判断系统刚刚做了什么。
               </p>
@@ -371,7 +405,7 @@ onMounted(async () => {
                   :key="event.id"
                   class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
                 >
-                  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                       <div class="flex flex-wrap items-center gap-2">
                         <span class="text-sm font-semibold text-[var(--color-text)]">{{ event.title }}</span>

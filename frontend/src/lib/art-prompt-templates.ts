@@ -1,6 +1,6 @@
 import type { ArtPromptTemplate } from '@/types/pocketbase'
 
-export type ArtPromptTemplateOption = {
+export interface ArtPromptTemplateOption {
   id: string
   label: string
   description: string

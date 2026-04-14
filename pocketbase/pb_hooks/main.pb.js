@@ -1,4 +1,16 @@
+/// <reference path="../../pb_data/types.d.ts" />
+
 var hookLogger = $app.logger().with("module", "main.pb.js")
+
+onRecordEnrich((e) => {
+  var activityResults = require(__hooks + "/activity-results.js")
+  return activityResults.enrichActivityRecord(e)
+}, "activities")
+
+onRecordEnrich((e) => {
+  var activityResults = require(__hooks + "/activity-results.js")
+  return activityResults.enrichArtJobRecord(e)
+}, "art_jobs")
 
 routerAdd("POST", "/api/integrations/strava/connect", function (e) {
   var utils = require(__hooks + "/strava.js")
