@@ -1,0 +1,107 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compute image names
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          repo="${repo,,}"
+          short_sha="${GITHUB_SHA::7}"
+
+          echo "frontend_image=ghcr.io/${owner}/${repo}-frontend" >> "$GITHUB_OUTPUT"
+          echo "pocketbase_image=ghcr.io/${owner}/${repo}-pocketbase" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.frontend_image }}:main
+            ${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.sha_tag }}
+
+      - name: Build and push PocketBase image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./pocketbase/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.pocketbase_image }}:main
+            ${{ steps.meta.outputs.pocketbase_image }}:${{ steps.meta.outputs.sha_tag }}
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust deployment host
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          FRONTEND_IMAGE: ${{ steps.meta.outputs.frontend_image }}
+          POCKETBASE_IMAGE: ${{ steps.meta.outputs.pocketbase_image }}
+        run: |
+          set -euo pipefail
+
+          ghcr_username_b64="$(printf '%s' "${GHCR_USERNAME}" | base64)"
+          ghcr_token_b64="$(printf '%s' "${GHCR_TOKEN}" | base64)"
+          frontend_image_b64="$(printf '%s' "${FRONTEND_IMAGE}" | base64)"
+          pocketbase_image_b64="$(printf '%s' "${POCKETBASE_IMAGE}" | base64)"
+
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" \
+            "export GHCR_USERNAME=\$(printf '%s' '${ghcr_username_b64}' | base64 -d); \
+             export GHCR_TOKEN=\$(printf '%s' '${ghcr_token_b64}' | base64 -d); \
+             export FRONTEND_IMAGE=\$(printf '%s' '${frontend_image_b64}' | base64 -d); \
+             export POCKETBASE_IMAGE=\$(printf '%s' '${pocketbase_image_b64}' | base64 -d); \
+             export IMAGE_TAG='main'; \
+             bash /root/strava/deploy.sh"

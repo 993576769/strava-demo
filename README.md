@@ -109,7 +109,7 @@ cp frontend/.env.example frontend/.env
 方式一：Docker
 
 ```bash
-docker compose up -d pocketbase
+docker compose -f docker-compose.dev.yml up -d pocketbase
 ```
 
 方式二：本地二进制
@@ -188,6 +188,95 @@ pnpm run typecheck:pocketbase
 pnpm --dir frontend run typecheck
 ```
 
+## 生产部署
+
+当前仓库已经包含一套 `GitHub Actions + GHCR + SSH` 的生产部署骨架，目标域名是 `https://strava.lazegull.top`。
+
+### 1. GitHub Actions 自动部署
+
+工作流文件：
+
+- `.github/workflows/deploy.yml`
+
+触发方式：
+
+- push 到 `main`
+- 手动触发 `workflow_dispatch`
+
+工作流会：
+
+1. 构建前端镜像
+2. 构建 PocketBase 镜像
+3. 推送到 GHCR
+4. 通过 SSH 连接服务器
+5. 在 `/root/strava` 执行部署脚本
+
+### 2. GitHub Secrets
+
+仓库至少需要配置这些 secrets：
+
+- `SSH_HOST`
+- `SSH_PORT`
+- `SSH_USER`
+- `SSH_PRIVATE_KEY`
+- `SSH_KNOWN_HOSTS`
+- `GHCR_USERNAME`
+- `GHCR_TOKEN`
+
+其中：
+
+- `GHCR_TOKEN` 需要能在 CI 推送镜像
+- 服务器执行部署时也会用这组 GHCR 凭据完成 `docker login`
+
+### 3. 服务器目录
+
+服务器固定部署目录是：
+
+```bash
+/root/strava
+```
+
+把这些模板文件放到服务器该目录：
+
+- `docker-compose.yml` -> `/root/strava/docker-compose.yml`
+- `deploy/deploy.sh` -> `/root/strava/deploy.sh`
+- `.env.example` -> `/root/strava/.env`
+
+首次部署前建议执行：
+
+```bash
+mkdir -p /root/strava/pb_data
+chmod +x /root/strava/deploy.sh
+```
+
+### 4. 生产环境变量
+
+服务器 `.env` 至少需要确认这些值：
+
+- `FRONTEND_IMAGE=ghcr.io/<owner>/<repo>-frontend`
+- `POCKETBASE_IMAGE=ghcr.io/<owner>/<repo>-pocketbase`
+- `IMAGE_TAG=main`
+- `APP_URL=https://strava.lazegull.top`
+- `STRAVA_REDIRECT_URI=https://strava.lazegull.top/api/integrations/strava/callback`
+- `ART_ASSET_BASE_URL=https://strava.lazegull.top`
+
+其他 Strava、PocketBase admin、渲染服务相关变量继续按你的生产实际填写。
+
+### 5. Nginx 反向代理
+
+服务器现有 Nginx 可参考：
+
+- `deploy/strava.lazegull.top.conf`
+
+核心反代规则：
+
+- `/` -> `127.0.0.1:8080`
+- `/api/` -> `127.0.0.1:8090`
+- `/_/` -> `127.0.0.1:8090`
+- `/realtime/` -> `127.0.0.1:8090`
+
+这样前端可以继续走同源访问，不需要额外设置 `VITE_PB_URL`。
+
 ## 核心目录
 
 ```text
@@ -226,6 +315,7 @@ vue-pocketbase-template/
 │   ├── scripts/
 │   └── seeds/
 ├── docs/
+├── docker-compose.dev.yml
 ├── docker-compose.yml
 └── README.md
 ```
