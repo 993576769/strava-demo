@@ -200,7 +200,7 @@ pnpm --dir frontend run typecheck
 
 触发方式：
 
-- push 到 `main`
+- push 到 `master`
 - 手动触发 `workflow_dispatch`
 
 工作流会：
@@ -225,8 +225,9 @@ pnpm --dir frontend run typecheck
 
 其中：
 
-- `GHCR_TOKEN` 需要能在 CI 推送镜像
-- 服务器执行部署时也会用这组 GHCR 凭据完成 `docker login`
+- GitHub Actions 推送 GHCR 镜像使用内置的 `GITHUB_TOKEN`，不需要额外配置 CI 专用 GHCR 凭据
+- `GHCR_USERNAME` / `GHCR_TOKEN` 只用于服务器执行部署时的 `docker login ghcr.io`
+- `GHCR_TOKEN` 需要至少具备 `read:packages` 权限；如果你希望复用它做本地推送，也可以额外给 `write:packages`
 
 ### 3. 服务器目录
 
@@ -255,7 +256,7 @@ chmod +x /root/strava/deploy.sh
 
 - `FRONTEND_IMAGE=ghcr.io/<owner>/<repo>-frontend`
 - `POCKETBASE_IMAGE=ghcr.io/<owner>/<repo>-pocketbase`
-- `IMAGE_TAG=main`
+- `IMAGE_TAG=master`
 - `APP_URL=https://strava.lazegull.top`
 - `STRAVA_REDIRECT_URI=https://strava.lazegull.top/api/integrations/strava/callback`
 - `ART_ASSET_BASE_URL=https://strava.lazegull.top`

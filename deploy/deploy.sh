@@ -9,7 +9,7 @@ cd /root/strava
 : "${FRONTEND_IMAGE:?set FRONTEND_IMAGE}"
 : "${POCKETBASE_IMAGE:?set POCKETBASE_IMAGE}"
 
-export IMAGE_TAG="${IMAGE_TAG:-main}"
+export IMAGE_TAG="${IMAGE_TAG:-master}"
 
 printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 docker compose pull
