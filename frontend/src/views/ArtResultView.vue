@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeft, Download, Image as ImageIcon, Sparkles } from 'lucide-vue-next'
+import { Download, Image as ImageIcon, Sparkles } from 'lucide-vue-next'
 import { computed, onUnmounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
 import { useArtResultsStore } from '@/stores/art-results'
 
 const route = useRoute()
-const router = useRouter()
 const artResultsStore = useArtResultsStore()
 
 const resultId = computed(() => String(route.params.id ?? ''))
@@ -48,19 +47,14 @@ watch(resultId, async () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  artResultsStore.clear()
+  artResultsStore.clearDetail()
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <button class="btn btn-ghost" @click="router.back()">
-          <ArrowLeft class="mr-2 h-4 w-4" />
-          返回上一页
-        </button>
-
+      <div class="mb-6 flex flex-wrap items-center justify-end gap-4">
         <button v-if="result?.image_data_uri" class="btn btn-primary" @click="downloadImage">
           <Download class="mr-2 h-4 w-4" />
           {{ downloadLabel }}

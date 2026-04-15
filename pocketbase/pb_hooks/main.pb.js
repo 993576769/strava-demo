@@ -112,7 +112,22 @@ routerAdd("GET", "/api/integrations/strava/status", function (e) {
 
 routerAdd("POST", "/api/integrations/strava/sync", function (e) {
   var utils = require(__hooks + "/strava.js")
-  var result = utils.syncActivities(e.auth.id)
+  var body = e.requestInfo().body || {}
+  var mode = body && typeof body.mode === "string" ? String(body.mode) : "incremental"
+  var result = utils.syncActivities(e.auth.id, {
+    mode: mode,
+  })
+  return e.json(200, {
+    connection: result.connection.publicExport(),
+    stats: result.stats,
+  })
+}, $apis.requireAuth("users"))
+
+routerAdd("POST", "/api/integrations/strava/sync-history", function (e) {
+  var utils = require(__hooks + "/strava.js")
+  var result = utils.syncActivities(e.auth.id, {
+    mode: "history",
+  })
   return e.json(200, {
     connection: result.connection.publicExport(),
     stats: result.stats,

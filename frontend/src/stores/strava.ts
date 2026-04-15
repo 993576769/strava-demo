@@ -15,6 +15,7 @@ export type StravaUiStatus
     | 'error'
 
 interface StravaSyncStats {
+  mode: 'incremental' | 'history'
   fetched: number
   created: number
   updated: number
@@ -46,6 +47,7 @@ export const useStravaStore = defineStore('strava', () => {
   const queryCache = useQueryCache()
   const syncSummary = ref<StravaSyncStats | null>(null)
   const connecting = ref(false)
+  const syncMode = ref<'incremental' | 'history'>('incremental')
 
   const connectionQuery = useQuery<StravaConnection | null, Error>({
     key: () => ['strava', 'connection', auth.user?.id ?? '__guest__'],
@@ -62,10 +64,13 @@ export const useStravaStore = defineStore('strava', () => {
 
   const syncMutation = useMutation<{ connection: StravaConnection | null, stats: StravaSyncStats | null }, void, Error>({
     mutation: async () => {
+      const endpoint = syncMode.value === 'history'
+        ? '/api/integrations/strava/sync-history'
+        : '/api/integrations/strava/sync'
       const result = await pb.send<{
         connection?: unknown
         stats?: StravaSyncStats
-      }>('/api/integrations/strava/sync', {
+      }>(endpoint, {
         method: 'POST',
       })
 
@@ -76,6 +81,7 @@ export const useStravaStore = defineStore('strava', () => {
     },
     onSuccess: ({ connection, stats }) => {
       syncSummary.value = stats
+      syncMode.value = 'incremental'
 
       if (connection !== null) {
         queryCache.setQueryData(['strava', 'connection', auth.user?.id ?? '__guest__'], connection)
@@ -112,6 +118,7 @@ export const useStravaStore = defineStore('strava', () => {
 
     return null
   })
+  const activeSyncMode = computed(() => (syncing.value ? syncMode.value : null))
 
   const status = computed<StravaUiStatus>(() => {
     if (!auth.isLoggedIn) { return 'not_connected' }
@@ -159,10 +166,11 @@ export const useStravaStore = defineStore('strava', () => {
     await connectionQuery.refetch()
   }
 
-  const runSync = async () => {
+  const runSync = async (mode: 'incremental' | 'history' = 'incremental') => {
     if (!auth.isLoggedIn) { return null }
 
     syncSummary.value = null
+    syncMode.value = mode
 
     try {
       const result = await syncMutation.mutateAsync()
@@ -170,6 +178,7 @@ export const useStravaStore = defineStore('strava', () => {
     }
     catch (value) {
       console.error(value)
+      syncMode.value = 'incremental'
       return null
     }
   }
@@ -191,6 +200,7 @@ export const useStravaStore = defineStore('strava', () => {
     loading,
     connecting,
     syncing,
+    activeSyncMode,
     disconnecting,
     error,
     syncSummary,

@@ -6,24 +6,30 @@ import { activitiesCollection } from '@/lib/pocketbase'
 import { useAuthStore } from '@/stores/auth'
 import { isActivity } from '@/types/pocketbase'
 
-const fetchActivitiesList = async () => {
-  const result = await activitiesCollection().getList(1, 100, {
-    sort: '-start_date',
-  })
-
-  return result.items.filter(isActivity)
-}
+const ACTIVITIES_PER_PAGE = 12
 
 export const useActivitiesStore = defineStore('activities', () => {
   const auth = useAuthStore()
   const currentActivityId = ref('')
+  const activities = ref<Activity[]>([])
+  const totalItems = ref(0)
+  const currentPage = ref(1)
+  const loading = ref(false)
+  const loadingMore = ref(false)
+  const listError = ref<string | null>(null)
 
-  const activitiesQuery = useQuery<Activity[], Error>({
-    key: () => ['activities', 'list', auth.user?.id ?? '__guest__'],
-    enabled: computed(() => auth.isLoggedIn),
-    query: fetchActivitiesList,
-    refetchOnWindowFocus: false,
-  })
+  const fetchActivitiesPage = async (page: number) => {
+    const result = await activitiesCollection().getList(page, ACTIVITIES_PER_PAGE, {
+      sort: '-start_date',
+    })
+
+    return {
+      items: result.items.filter(isActivity),
+      page: result.page,
+      totalItems: result.totalItems,
+      totalPages: result.totalPages,
+    }
+  }
 
   const detailQuery = useQuery<Activity | null, Error>({
     key: () => ['activities', 'detail', currentActivityId.value || '__idle__'],
@@ -35,22 +41,60 @@ export const useActivitiesStore = defineStore('activities', () => {
     refetchOnWindowFocus: false,
   })
 
-  const activities = computed(() => (auth.isLoggedIn ? activitiesQuery.data.value ?? [] : []))
   const currentActivity = computed(() => currentActivityId.value ? (detailQuery.data.value ?? null) : null)
-  const loading = computed(() => auth.isLoggedIn && activitiesQuery.isLoading.value)
   const detailLoading = computed(() => currentActivityId.value.length > 0 && detailQuery.isLoading.value)
+  const hasMore = computed(() => activities.value.length < totalItems.value)
   const error = computed(() => {
     if (detailQuery.error.value) { return '读取活动详情失败' }
-    if (activitiesQuery.error.value) { return '读取活动列表失败' }
+    if (listError.value) { return listError.value }
     return null
   })
 
   const readyActivities = computed(() => activities.value.filter(activity => activity.sync_status === 'ready'))
   const generatableActivities = computed(() => activities.value.filter(activity => activity.is_generatable))
+  const loadedCount = computed(() => activities.value.length)
 
   const fetchActivities = async () => {
     if (!auth.isLoggedIn) { return }
-    await activitiesQuery.refetch()
+
+    loading.value = true
+    listError.value = null
+
+    try {
+      const result = await fetchActivitiesPage(1)
+      activities.value = result.items
+      totalItems.value = result.totalItems
+      currentPage.value = result.page
+    }
+    catch (value) {
+      console.error(value)
+      listError.value = '读取活动列表失败'
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
+  const loadMoreActivities = async () => {
+    if (!auth.isLoggedIn || loading.value || loadingMore.value || !hasMore.value) { return }
+
+    loadingMore.value = true
+    listError.value = null
+
+    try {
+      const nextPage = currentPage.value + 1
+      const result = await fetchActivitiesPage(nextPage)
+      activities.value = activities.value.concat(result.items)
+      totalItems.value = result.totalItems
+      currentPage.value = result.page
+    }
+    catch (value) {
+      console.error(value)
+      listError.value = '读取更多活动失败'
+    }
+    finally {
+      loadingMore.value = false
+    }
   }
 
   const fetchActivityById = async (id: string) => {
@@ -64,13 +108,18 @@ export const useActivitiesStore = defineStore('activities', () => {
 
   return {
     activities,
+    totalItems,
+    loadedCount,
     currentActivity,
     loading,
+    loadingMore,
+    hasMore,
     detailLoading,
     error,
     readyActivities,
     generatableActivities,
     fetchActivities,
+    loadMoreActivities,
     fetchActivityById,
     clearCurrentActivity,
   }

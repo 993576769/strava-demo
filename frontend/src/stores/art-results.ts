@@ -188,6 +188,15 @@ export const useArtResultsStore = defineStore('artResults', () => {
     queueMutation.reset()
   }
 
+  const clearList = () => {
+    listActivityId.value = ''
+    listPerPage.value = 20
+  }
+
+  const clearDetail = () => {
+    detailResultId.value = ''
+  }
+
   return {
     results,
     currentResult,
@@ -206,6 +215,8 @@ export const useArtResultsStore = defineStore('artResults', () => {
     fetchResultsForActivity,
     fetchResultById,
     queueJob,
+    clearList,
+    clearDetail,
     clear,
   }
 })

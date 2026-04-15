@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Sparkles } from 'lucide-vue-next'
+import { Sparkles } from 'lucide-vue-next'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ArtResultsGallery from '@/components/ArtResultsGallery.vue'
@@ -51,20 +51,13 @@ onMounted(() => {
 
 onUnmounted(() => {
   activitiesStore.clearCurrentActivity()
-  artResultsStore.clear()
+  artResultsStore.clearList()
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div class="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button class="btn btn-ghost w-full justify-center sm:w-auto sm:justify-start" @click="router.push({ name: 'activity-detail', params: { id: activityId } })">
-          <ArrowLeft class="mr-2 h-4 w-4" />
-          返回活动详情
-        </button>
-      </div>
-
       <section class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-8">
         <div class="flex items-start gap-3">
           <Sparkles class="mt-1 h-5 w-5 shrink-0 text-primary" />

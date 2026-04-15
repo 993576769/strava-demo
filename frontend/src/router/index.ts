@@ -30,6 +30,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/history',
+      name: 'generation-history',
+      component: () => import('@/views/GenerationHistoryView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/results/:id',
       name: 'art-result-detail',
       component: () => import('@/views/ArtResultView.vue'),
@@ -54,6 +60,14 @@ const router = createRouter({
       meta: { guest: true },
     },
   ],
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+    else {
+      return { top: 0 }
+    }
+  },
 })
 
 const resolveGuestRedirect = (to: RouteLocationNormalizedGeneric): RouteLocationRaw => {

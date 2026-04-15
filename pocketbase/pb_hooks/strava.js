@@ -235,6 +235,9 @@ module.exports = {
     if (options && options.afterEpoch) {
       query.push("after=" + encodeURIComponent(String(options.afterEpoch)))
     }
+    if (options && options.beforeEpoch) {
+      query.push("before=" + encodeURIComponent(String(options.beforeEpoch)))
+    }
     if (options && options.page) {
       query.push("page=" + encodeURIComponent(String(options.page)))
     }
@@ -283,6 +286,29 @@ module.exports = {
     }
 
     return response.json || {}
+  },
+
+  findBoundaryActivityRecord: function (userId, sort) {
+    if (!userId) {
+      return null
+    }
+
+    try {
+      var records = $app.findRecordsByFilter(
+        "activities",
+        "user = {:userId} && source = 'strava' && start_date != ''",
+        sort,
+        1,
+        0,
+        {
+          userId: userId,
+        }
+      )
+
+      return records && records.length ? records[0] : null
+    } catch (_) {
+      return null
+    }
   },
 
   getConnectionForUser: function (userId) {
@@ -570,7 +596,7 @@ module.exports = {
     }
   },
 
-  syncActivities: function (userId) {
+  syncActivities: function (userId, options) {
     var connection = this.getConnectionForUser(userId)
     if (!connection) {
       this.logEvent(userId, "sync", "error", "Strava 同步失败", "当前用户还没有有效的 Strava 连接。", null)
@@ -595,10 +621,19 @@ module.exports = {
       throw error
     }
 
+    var mode = options && options.mode === "history" ? "history" : "incremental"
     var afterEpoch = 0
+    var beforeEpoch = 0
     var cursor = connection.getString("last_sync_cursor")
-    if (cursor) {
+    if (mode === "incremental" && cursor) {
       afterEpoch = Math.floor(new Date(cursor).getTime() / 1000)
+    }
+    if (mode === "history") {
+      var oldestActivity = this.findBoundaryActivityRecord(userId, "+start_date")
+      var oldestStartDate = oldestActivity ? oldestActivity.getString("start_date") : ""
+      if (oldestStartDate) {
+        beforeEpoch = Math.max(1, Math.floor(new Date(oldestStartDate).getTime() / 1000) - 1)
+      }
     }
 
     var page = 1
@@ -607,8 +642,10 @@ module.exports = {
     var maxActivities = this.getSyncMaxActivities()
     var allSummaries = []
 
-    this.logEvent(userId, "sync", "info", "Strava 同步开始", "正在拉取最近活动并更新本地数据。", {
+    this.logEvent(userId, "sync", "info", mode === "history" ? "Strava 历史回填开始" : "Strava 同步开始", mode === "history" ? "正在回填更早的历史活动并更新本地数据。" : "正在拉取最近活动并更新本地数据。", {
+      mode: mode,
       afterEpoch: afterEpoch || null,
+      beforeEpoch: beforeEpoch || null,
       perPage: perPage,
       maxPages: maxPages,
       maxActivities: maxActivities,
@@ -618,6 +655,7 @@ module.exports = {
       while (page <= maxPages && allSummaries.length < maxActivities) {
         var items = this.fetchAthleteActivities(accessToken, {
           afterEpoch: afterEpoch,
+          beforeEpoch: beforeEpoch,
           page: page,
           perPage: perPage,
         })
@@ -649,6 +687,7 @@ module.exports = {
     }
 
     var stats = {
+      mode: mode,
       fetched: allSummaries.length,
       created: 0,
       updated: 0,
@@ -705,7 +744,7 @@ module.exports = {
       }
 
       var startDate = (detail && detail.start_date) || summary.start_date || ""
-      if (startDate && (!latestStartDate || new Date(startDate).getTime() > new Date(latestStartDate).getTime())) {
+      if (mode === "incremental" && startDate && (!latestStartDate || new Date(startDate).getTime() > new Date(latestStartDate).getTime())) {
         latestStartDate = startDate
         connection.set("last_sync_cursor", latestStartDate)
         $app.save(connection)
@@ -714,7 +753,9 @@ module.exports = {
 
     var now = new Date().toISOString()
     connection.set("last_sync_at", now)
-    connection.set("last_sync_cursor", latestStartDate || now)
+    if (mode === "incremental") {
+      connection.set("last_sync_cursor", latestStartDate || now)
+    }
     connection.set("status", "active")
     connection.set("last_error_code", "")
     connection.set("last_error_message", "")
@@ -723,9 +764,16 @@ module.exports = {
       userId,
       "sync",
       stats.failed > 0 ? "warning" : "success",
-      stats.failed > 0 ? "Strava 同步完成（部分失败）" : "Strava 同步完成",
-      "本次同步抓取 " + stats.fetched + " 条活动，新增 " + stats.created + " 条，更新 " + stats.updated + " 条，失败 " + stats.failed + " 条。" + (stats.fetched >= maxActivities ? " 已达到本次同步上限，下一次会继续从上次游标之后拉取。" : ""),
+      stats.failed > 0
+        ? (mode === "history" ? "Strava 历史回填完成（部分失败）" : "Strava 同步完成（部分失败）")
+        : (mode === "history" ? "Strava 历史回填完成" : "Strava 同步完成"),
+      "本次抓取 " + stats.fetched + " 条活动，新增 " + stats.created + " 条，更新 " + stats.updated + " 条，失败 " + stats.failed + " 条。" + (
+        stats.fetched >= maxActivities
+          ? (mode === "history" ? " 已达到本次历史回填上限，再执行一次会继续向更早时间回填。" : " 已达到本次同步上限，下一次会继续从上次游标之后拉取。")
+          : ""
+      ),
       {
+        mode: mode,
         fetched: stats.fetched,
         created: stats.created,
         updated: stats.updated,

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ArrowLeft, ImageUp, Loader2, Save, ShieldCheck } from 'lucide-vue-next'
+import { ImageUp, Loader2, Save, ShieldCheck } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useArtPromptTemplatesStore } from '@/stores/art-prompt-templates'
 
-const router = useRouter()
 const artPromptTemplatesStore = useArtPromptTemplatesStore()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -119,13 +117,6 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <button class="btn btn-ghost" @click="router.push({ name: 'home' })">
-          <ArrowLeft class="mr-2 h-4 w-4" />
-          返回首页
-        </button>
-      </div>
-
       <section class="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
         <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div class="flex items-start gap-3">

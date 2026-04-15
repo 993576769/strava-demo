@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AspectRatio } from '@/lib/art-presets'
-import { ArrowLeft, Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
+import { Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ActivityRouteMap from '@/components/ActivityRouteMap.vue'
@@ -85,6 +85,7 @@ const routePoints = computed(() => {
     ?? activityStreamsStore.currentStream?.latlng_stream_json
     ?? null
 })
+const routeAltitudes = computed(() => activityStreamsStore.currentStream?.altitude_stream_json ?? null)
 
 const getResultRendererLabel = (result: unknown) => {
   if (!result || typeof result !== 'object') { return '成品' }
@@ -255,20 +256,13 @@ onUnmounted(() => {
   activityStreamsStore.clear()
   artJobsStore.clear()
   artPromptTemplatesStore.clear()
-  artResultsStore.clear()
+  artResultsStore.clearList()
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
     <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
-      <div class="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button class="btn btn-ghost w-full justify-center sm:w-auto sm:justify-start" @click="router.push({ name: 'activities' })">
-          <ArrowLeft class="mr-2 h-4 w-4" />
-          返回活动列表
-        </button>
-      </div>
-
       <section v-if="activitiesStore.detailLoading" class="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface-card)] p-6 text-sm text-[var(--color-text-muted)]">
         正在读取活动详情...
       </section>
@@ -360,6 +354,7 @@ onUnmounted(() => {
           ref="routeMapRef"
           :encoded-polyline="encodedPolyline"
           :points="routePoints"
+          :altitudes="routeAltitudes"
           :title="activity?.name || 'Untitled Activity'"
           :subtitle="routeSubtitle"
           :filename="`${activity?.sport_type || 'activity'}-${activity?.id || 'route'}`"

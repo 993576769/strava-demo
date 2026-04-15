@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { Compass, Download, Link2, LogOut, Route, ShieldCheck, Sparkles, Unplug } from 'lucide-vue-next'
+import { Compass, Download, History, Link2, Route, ShieldCheck, Sparkles, Unplug } from 'lucide-vue-next'
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStravaStore } from '@/stores/strava'
 
@@ -11,17 +10,11 @@ const auth = useAuthStore()
 const strava = useStravaStore()
 
 const displayName = computed(() => auth.displayName)
-const email = computed(() => auth.user?.email ?? '')
 const stravaStatusLabel = computed(() => strava.statusLabel)
 const lastSyncLabel = computed(() => {
   if (!strava.lastSyncAt) { return '首次同步尚未开始' }
   return `最近同步时间：${new Date(strava.lastSyncAt).toLocaleString()}`
 })
-
-const handleLogout = () => {
-  auth.logout()
-  router.push({ name: 'login' })
-}
 
 onMounted(async () => {
   await strava.fetchConnection()
@@ -29,6 +22,10 @@ onMounted(async () => {
 
 const openActivities = () => {
   router.push({ name: 'activities' })
+}
+
+const openGenerationHistory = () => {
+  router.push({ name: 'generation-history' })
 }
 
 const syncActivities = async () => {
@@ -46,36 +43,6 @@ const openPromptTemplates = () => {
 
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.08),_transparent_28%),var(--bg)]">
-    <header class="sticky top-0 z-10 border-b border-[var(--color-border)]/60 bg-[var(--color-surface-card)]/70 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <div>
-          <p class="text-xs tracking-[0.26em] text-[var(--color-text-muted)] uppercase">
-            Strava Art Lab
-          </p>
-          <h1 class="mt-1 text-lg font-semibold text-[var(--color-text)] sm:text-xl">
-            运动轨迹手绘生成器
-          </h1>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <ThemeToggle />
-          <div class="flex items-center gap-2 border-l border-[var(--color-border)] pl-3">
-            <div class="hidden text-right sm:block">
-              <p class="text-sm font-medium text-[var(--color-text)]">
-                {{ displayName }}
-              </p>
-              <p class="text-xs text-[var(--color-text-muted)]">
-                {{ email }}
-              </p>
-            </div>
-            <button class="btn btn-ghost" title="退出登录" @click="handleLogout">
-              <LogOut class="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <section class="grid gap-6 lg:grid-cols-[1.35fr_0.95fr]">
         <div class="rounded-[28px] border border-[var(--color-border)]/50 bg-[var(--color-surface-card)] p-6 shadow-[0_20px_50px_rgba(15,23,42,0.10)] sm:p-8">
@@ -87,6 +54,10 @@ const openPromptTemplates = () => {
           </h2>
           <p class="mt-4 leading-7 text-[var(--color-text-muted)]">
             现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成成品图；未配置 Doubao Seedream 5.0 时会自动回退到 mock。
+          </p>
+
+          <p class="mt-4 text-sm text-[var(--color-text-muted)]">
+            当前账号：{{ displayName }}
           </p>
 
           <div class="mt-6 flex flex-wrap gap-3">
@@ -109,6 +80,10 @@ const openPromptTemplates = () => {
             <button class="btn btn-ghost" @click="openActivities">
               <Sparkles class="mr-2 h-4 w-4" />
               查看本地活动
+            </button>
+            <button class="btn btn-ghost" @click="openGenerationHistory">
+              <History class="mr-2 h-4 w-4" />
+              生成记录
             </button>
             <button v-if="auth.isAdmin" class="btn btn-ghost" @click="openPromptTemplates">
               <ShieldCheck class="mr-2 h-4 w-4" />

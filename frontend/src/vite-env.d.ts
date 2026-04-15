@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_PB_URL: string
+  readonly VITE_MAPTILER_KEY: string
 }
 
 interface ImportMeta {

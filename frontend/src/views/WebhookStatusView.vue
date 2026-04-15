@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ArrowLeft, CheckCircle2, Link2, RefreshCw, ShieldCheck, TriangleAlert, Unplug } from 'lucide-vue-next'
+import { CheckCircle2, Link2, RefreshCw, ShieldCheck, TriangleAlert, Unplug } from 'lucide-vue-next'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { useStravaStore } from '@/stores/strava'
 import { useSyncEventsStore } from '@/stores/sync-events'
 
-const router = useRouter()
 const stravaStore = useStravaStore()
 const syncEventsStore = useSyncEventsStore()
 const copyFeedback = ref('')
@@ -146,32 +144,27 @@ onUnmounted(() => {
 <template>
   <div class="min-h-screen bg-[linear-gradient(180deg,_rgba(79,70,229,0.06),_transparent_24%),var(--bg)]">
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <button class="btn btn-ghost" @click="router.back()">
-          <ArrowLeft class="mr-2 h-4 w-4" />
-          返回上一页
-        </button>
-
-        <button class="btn btn-ghost" @click="refreshPage">
+      <div class="mb-5 flex">
+        <button class="btn btn-ghost w-full justify-center sm:w-auto sm:justify-start" @click="refreshPage">
           <RefreshCw class="mr-2 h-4 w-4" />
           刷新状态页
         </button>
       </div>
 
-      <section class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-8">
+      <section class="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <article class="min-w-0 rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-8">
           <p class="text-xs tracking-[0.26em] text-[var(--color-text-muted)] uppercase">
             Dev Panel
           </p>
           <h1 class="mt-3 text-2xl font-semibold text-[var(--color-text)] sm:text-3xl">
             Webhook 状态页
           </h1>
-          <p class="mt-3 leading-7 text-[var(--color-text-muted)]">
+          <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base sm:leading-7">
             这个页面用于开发联调。你可以在这里确认当前 Strava 连接状态、webhook 回调地址，以及最近一次 webhook / 同步事件是否真的进入了系统。
           </p>
 
-          <div class="mt-6 grid gap-4 sm:grid-cols-2">
-            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
+          <div class="mt-6 grid min-w-0 gap-4 sm:grid-cols-2">
+            <div class="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
               <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                 连接状态
               </p>
@@ -183,7 +176,7 @@ onUnmounted(() => {
               </p>
             </div>
 
-            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
+            <div class="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
               <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                 最近 webhook
               </p>
@@ -203,48 +196,48 @@ onUnmounted(() => {
             <p class="mt-1 leading-6">
               {{ stravaStore.lastErrorMessage || '连接已失效、被撤销，或者 token 刷新失败。' }}
             </p>
-            <div class="mt-3 flex flex-wrap gap-3">
-              <button class="btn btn-primary" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="reconnect">
+            <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button class="btn btn-primary w-full sm:w-auto" :disabled="stravaStore.connecting || !stravaStore.canConnect" @click="reconnect">
                 <Link2 class="mr-2 h-4 w-4" />
                 {{ stravaStore.needsReauthorization ? '重新授权 Strava' : '重新连接 Strava' }}
               </button>
-              <button class="btn btn-ghost" :disabled="!stravaStore.canDisconnect" @click="disconnect">
+              <button class="btn btn-ghost w-full sm:w-auto" :disabled="!stravaStore.canDisconnect" @click="disconnect">
                 <Unplug class="mr-2 h-4 w-4" />
                 {{ stravaStore.disconnecting ? '正在断开连接...' : '断开当前连接' }}
               </button>
             </div>
           </div>
 
-          <div class="mt-6 rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)]/35 p-5">
+          <div class="mt-6 min-w-0 rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)]/35 p-5">
             <div class="flex items-start gap-3">
               <ShieldCheck class="mt-1 h-5 w-5 shrink-0 text-primary" />
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                   <h2 class="text-base font-semibold text-[var(--color-text)]">
                     联调检查清单
                   </h2>
-                  <button class="btn btn-ghost" @click="copyText(verifyChecklistText, 'verify checklist 已复制')">
+                  <button class="btn btn-ghost w-full justify-center sm:w-auto sm:justify-start" @click="copyText(verifyChecklistText, 'verify checklist 已复制')">
                     复制 verify checklist
                   </button>
                 </div>
                 <p v-if="copyFeedback" class="mt-3 text-sm text-primary">
                   {{ copyFeedback }}
                 </p>
-                <div class="mt-4 grid gap-3">
-                  <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="mt-4 grid min-w-0 gap-3">
+                  <div class="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                       <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                         Webhook Callback URL
                       </p>
-                      <button class="btn btn-ghost" @click="copyText(webhookVerifyUrl, 'callback URL 已复制')">
+                      <button class="btn btn-ghost w-full justify-center sm:w-auto sm:max-w-full sm:justify-start" @click="copyText(webhookVerifyUrl, 'callback URL 已复制')">
                         复制 callback URL
                       </button>
                     </div>
-                    <p class="mt-2 text-sm font-medium break-all text-[var(--color-text)]">
+                    <p class="mt-2 min-w-0 overflow-hidden text-sm font-medium break-all text-[var(--color-text)]">
                       {{ webhookVerifyUrl }}
                     </p>
                   </div>
-                  <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
+                  <div class="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-4">
                     <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                       需要确认
                     </p>
@@ -260,8 +253,8 @@ onUnmounted(() => {
           </div>
         </article>
 
-        <aside class="grid gap-4">
-          <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <aside class="grid min-w-0 gap-4">
+          <section class="min-w-0 rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
             <h2 class="text-base font-semibold text-[var(--color-text)]">
               最近 webhook 事件
             </h2>
@@ -271,8 +264,8 @@ onUnmounted(() => {
             <div v-else-if="webhookEvents.length === 0" class="mt-4 text-sm text-[var(--color-text-muted)]">
               还没有 webhook 事件记录。
             </div>
-            <div v-else class="mt-4 grid gap-3">
-              <div v-for="event in webhookEvents" :key="event.id" class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
+            <div v-else class="mt-4 grid min-w-0 gap-3">
+              <div v-for="event in webhookEvents" :key="event.id" class="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="text-sm font-semibold text-[var(--color-text)]">{{ event.title }}</span>
                   <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="eventToneClass(event.status)">
@@ -289,7 +282,7 @@ onUnmounted(() => {
             </div>
           </section>
 
-          <section class="rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+          <section class="min-w-0 rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
             <h2 class="text-base font-semibold text-[var(--color-text)]">
               最近同步 / 连接事件
             </h2>
@@ -299,11 +292,11 @@ onUnmounted(() => {
             <div v-else-if="syncEvents.length === 0 && connectionEvents.length === 0" class="mt-4 text-sm text-[var(--color-text-muted)]">
               还没有同步或连接事件记录。
             </div>
-            <div v-else class="mt-4 grid gap-3">
+            <div v-else class="mt-4 grid min-w-0 gap-3">
               <div
                 v-for="event in [...connectionEvents, ...syncEvents].sort((a, b) => new Date(eventTimestamp(b)).getTime() - new Date(eventTimestamp(a)).getTime()).slice(0, 6)"
                 :key="event.id"
-                class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
+                class="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-4"
               >
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="text-sm font-semibold text-[var(--color-text)]">{{ event.title }}</span>
@@ -324,7 +317,7 @@ onUnmounted(() => {
             </div>
           </section>
 
-          <section v-if="stravaStore.connection?.last_webhook_at" class="rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+          <section v-if="stravaStore.connection?.last_webhook_at" class="min-w-0 rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
             <div class="flex items-start gap-3">
               <CheckCircle2 class="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
               <div>
@@ -338,7 +331,7 @@ onUnmounted(() => {
             </div>
           </section>
 
-          <section v-else class="rounded-[28px] border border-amber-500/20 bg-amber-500/10 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+          <section v-else class="min-w-0 rounded-[28px] border border-amber-500/20 bg-amber-500/10 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
             <div class="flex items-start gap-3">
               <TriangleAlert class="mt-1 h-5 w-5 shrink-0 text-amber-600" />
               <div>
