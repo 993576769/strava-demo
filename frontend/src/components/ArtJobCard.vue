@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ArtJobWithResult } from '@/stores/art-jobs'
-import { CheckCircle2 } from 'lucide-vue-next'
 import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
 import { cn } from '@/lib/utils'
 
@@ -54,13 +53,6 @@ const jobStatusClass = (status: string) => {
 const getJobTimestamp = (job: { queued_at?: string, started_at?: string, finished_at?: string }) => {
   return job.queued_at || job.started_at || job.finished_at || ''
 }
-
-const getAspectRatioLabel = (value: unknown) => {
-  if (!value || typeof value !== 'object') { return 'portrait' }
-
-  const ratio = 'aspectRatio' in value ? value.aspectRatio : undefined
-  return typeof ratio === 'string' && ratio.length > 0 ? ratio : 'portrait'
-}
 </script>
 
 <template>
@@ -88,11 +80,6 @@ const getAspectRatioLabel = (value: unknown) => {
       </div>
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:max-w-56 sm:min-w-56">
-        <div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-muted)] sm:justify-end">
-          <CheckCircle2 class="h-4 w-4" />
-          {{ getAspectRatioLabel(job.render_options_json) }}
-        </div>
-
         <button
           v-if="job.result"
           type="button"

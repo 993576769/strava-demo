@@ -155,13 +155,6 @@ routerAdd("POST", "/api/art/jobs/{id}/render", function (e) {
   return e.json(200, renderArt.enqueueJob(e))
 }, $apis.requireAuth("users"))
 
-routerAdd("POST", "/api/art/jobs/{id}/mock-render", function (e) {
-  var renderArt = require(__hooks + "/render-art.js")
-  return e.json(200, renderArt.renderNowForUser(e, {
-    forceProvider: "mock",
-  }))
-}, $apis.requireAuth("users"))
-
 routerAdd("POST", "/api/admin/art-prompt-templates/{id}/reference-image", function (e) {
   var promptTemplates = require(__hooks + "/prompt-templates.js")
   return e.json(200, promptTemplates.uploadReferenceImage(e))

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import type { AspectRatio } from '@/lib/art-presets'
 import { Loader2, MapPinned, Palette, Sparkles, WandSparkles } from 'lucide-vue-next'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ActivityRouteMap from '@/components/ActivityRouteMap.vue'
 import ArtJobCard from '@/components/ArtJobCard.vue'
-import { aspectRatioDefinitions } from '@/lib/art-presets'
 import { cn } from '@/lib/utils'
 import { useActivitiesStore } from '@/stores/activities'
 import { useActivityStreamsStore } from '@/stores/activity-streams'
@@ -31,7 +29,6 @@ const routeMapRef = ref<ActivityRouteMapExpose | null>(null)
 const activityId = computed(() => String(route.params.id ?? ''))
 const activity = computed(() => activitiesStore.currentActivity)
 const selectedTemplateKey = ref('')
-const selectedAspectRatio = ref<AspectRatio>('portrait')
 const includeTitle = ref(true)
 const createFeedback = ref('')
 let queuePollingTimer: number | null = null
@@ -96,9 +93,6 @@ const getResultRendererLabel = (result: unknown) => {
   const provider = 'provider' in metadata ? metadata.provider : undefined
   if (provider === 'doubao-seedream') { return 'Doubao Seedream 5.0 成品' }
 
-  const renderer = 'renderer' in metadata ? metadata.renderer : undefined
-  if (renderer === 'mock-svg-v1') { return 'Mock 成品' }
-
   return '成品'
 }
 
@@ -116,10 +110,11 @@ const activityGeneratableClass = (isGeneratable: boolean) => cn(
   isGeneratable ? 'bg-emerald-500/12 text-emerald-600' : 'bg-amber-500/12 text-amber-600',
 )
 
-const selectableCardClass = (selected: boolean, selectedClass: string) => cn(
+const templateCardClass = (selected: boolean) => cn(
+  'group min-w-0 rounded-3xl border p-4 text-left transition duration-200 sm:p-5',
   selected
-    ? selectedClass
-    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55',
+    ? 'border-primary bg-primary/8 shadow-[0_14px_36px_rgba(79,70,229,0.16)] ring-1 ring-primary/20'
+    : 'border-[var(--color-border)] bg-[var(--color-surface-elevated)]/55 hover:border-primary/30 hover:bg-[var(--color-surface-elevated)]/75',
 )
 
 const hasRouteBaseImageUrl = (job: unknown) => {
@@ -176,7 +171,6 @@ const createArtJob = async () => {
   const job = await artJobsStore.createJob({
     activityId: activity.value.id,
     templateKey: selectedTemplateKey.value || artPromptTemplatesStore.defaultTemplateKey,
-    aspectRatio: selectedAspectRatio.value,
     includeTitle: includeTitle.value,
   })
 
@@ -293,8 +287,8 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+          <div class="mt-6 grid grid-cols-1 gap-0 divide-y divide-[var(--color-border)]/70 rounded-3xl border border-[var(--color-border)]/70 bg-[var(--color-surface-elevated)]/35 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+            <div class="p-4 sm:p-5">
               <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                 开始时间
               </p>
@@ -303,7 +297,7 @@ onUnmounted(() => {
               </p>
             </div>
 
-            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+            <div class="p-4 sm:p-5">
               <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                 距离
               </p>
@@ -312,7 +306,7 @@ onUnmounted(() => {
               </p>
             </div>
 
-            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+            <div class="p-4 sm:p-5">
               <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                 移动时间
               </p>
@@ -321,7 +315,7 @@ onUnmounted(() => {
               </p>
             </div>
 
-            <div class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/70 p-4">
+            <div class="p-4 sm:p-5">
               <p class="text-xs tracking-[0.2em] text-[var(--color-text-muted)] uppercase">
                 同步状态
               </p>
@@ -331,21 +325,19 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/45 p-5">
-            <div class="flex items-start gap-3">
-              <MapPinned class="mt-1 h-5 w-5 shrink-0 text-primary" />
-              <div>
-                <h2 class="text-base font-semibold text-[var(--color-text)]">
-                  轨迹可用性
-                </h2>
-                <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                  {{
-                    activity.is_generatable
-                      ? '当前活动已通过基础可生成校验。现在已经可以创建 `art_jobs` 任务，并走真实渲染入口。'
-                      : (activity.generatable_reason || '当前活动暂时不可生成，后续会补充更明确的判定说明。')
-                  }}
-                </p>
-              </div>
+          <div class="mt-6 flex items-start gap-3 rounded-3xl border border-[var(--color-border)]/70 px-4 py-5 sm:px-5">
+            <MapPinned class="mt-1 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <h2 class="text-base font-semibold text-[var(--color-text)]">
+                轨迹可用性
+              </h2>
+              <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
+                {{
+                  activity.is_generatable
+                    ? '当前活动已通过基础可生成校验。现在已经可以创建 `art_jobs` 任务，并走真实渲染入口。'
+                    : (activity.generatable_reason || '当前活动暂时不可生成，后续会补充更明确的判定说明。')
+                }}
+              </p>
             </div>
           </div>
         </article>
@@ -360,150 +352,141 @@ onUnmounted(() => {
           :filename="`${activity?.sport_type || 'activity'}-${activity?.id || 'route'}`"
         />
 
-        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
           <div class="flex items-start gap-3">
             <Palette class="mt-1 h-5 w-5 shrink-0 text-primary" />
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 flex-1 space-y-5">
               <h2 class="text-base font-semibold text-[var(--color-text)]">
                 生成设置
               </h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
-                现在会优先走真实渲染入口；如果本地还没有配置 Doubao Seedream 5.0 的必要参数，则会自动回退到 mock 渲染器。
+                当前会直接走 Doubao Seedream 5.0 渲染入口。生成前需要确保后端已经配置好对应的必要环境变量。
               </p>
-
-              <div v-if="artPromptTemplatesStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                正在读取模板选项...
-              </div>
-
-              <div v-else-if="artPromptTemplatesStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-                {{ artPromptTemplatesStore.error }}
-              </div>
-
-              <div v-else-if="artPromptTemplatesStore.options.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
-                当前还没有可用生成模板，先在 `art_prompt_templates` 里 seed 一条已激活模板后再生成。
-              </div>
-
-              <div v-if="artPromptTemplatesStore.options.length > 0" class="mt-5 grid gap-3 md:grid-cols-3">
-                <button
-                  v-for="template in artPromptTemplatesStore.options"
-                  :key="template.id"
-                  type="button"
-                  class="min-w-0 rounded-2xl border p-4 text-left transition"
-                  :class="selectableCardClass(selectedTemplateKey === template.id, 'border-primary bg-primary/8 shadow-[0_12px_30px_rgba(79,70,229,0.12)]')"
-                  @click="selectedTemplateKey = template.id"
-                >
-                  <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span class="min-w-0 text-sm font-semibold break-words text-[var(--color-text)]">{{ template.label }}</span>
-                    <span class="max-w-full rounded-full px-2.5 py-1 text-xs font-medium break-all sm:self-start" :class="cn(template.accentClass)">
-                      {{ template.id }}
-                    </span>
-                  </div>
-                  <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-                    {{ template.description }}
-                  </p>
-                </button>
-              </div>
-
-              <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                <button
-                  v-for="ratio in aspectRatioDefinitions"
-                  :key="ratio.id"
-                  type="button"
-                  class="rounded-2xl border p-4 text-left transition"
-                  :class="selectableCardClass(selectedAspectRatio === ratio.id, 'border-primary bg-primary/8')"
-                  @click="selectedAspectRatio = ratio.id"
-                >
-                  <p class="text-sm font-semibold text-[var(--color-text)]">
-                    {{ ratio.label }}
-                  </p>
-                  <p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                    {{ ratio.description }}
-                  </p>
-                </button>
-              </div>
-
-              <label class="mt-5 inline-flex items-center gap-3 text-sm text-[var(--color-text)]">
-                <input v-model="includeTitle" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]">
-                在首版输出中保留活动标题
-              </label>
-
-              <div v-if="createFeedback" class="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
-                {{ createFeedback }}
-              </div>
-
-              <div v-if="authStore.isLoggedIn && !authStore.isActive" class="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
-                当前账号尚未激活，暂时不能提交生成任务。请先由管理员手动激活账号。
-              </div>
-
-              <div v-if="artJobsStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-                {{ artJobsStore.error }}
-              </div>
-
-              <div v-if="artResultsStore.error" class="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-                {{ artResultsStore.error }}
-              </div>
-
-              <div class="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <button
-                  class="btn btn-primary w-full justify-center sm:w-auto"
-                  :disabled="!activity.is_generatable || !authStore.isActive || !selectedTemplateKey || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
-                  @click="createArtJob"
-                >
-                  <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="mr-2 h-4 w-4 animate-spin" />
-                  <WandSparkles v-else class="mr-2 h-4 w-4" />
-                  {{
-                    artJobsStore.creating
-                      ? '正在创建任务...'
-                      : artJobsStore.uploadingRouteBase
-                        ? '正在上传轨迹底稿...'
-                        : artResultsStore.queueing
-                          ? '正在加入队列...'
-                          : '生成成品'
-                  }}
-                </button>
-                <p class="text-sm leading-6 text-[var(--color-text-muted)]">
-                  {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由后台 worker 异步消费队列并产出成品。' : '当前活动不可生成，按钮已禁用。' }}
-                </p>
-              </div>
             </div>
+          </div>
+
+          <div v-if="artPromptTemplatesStore.loading" class="border-l-2 border-[var(--color-border)]/80 bg-[var(--color-surface-elevated)]/35 px-4 py-3 text-sm text-[var(--color-text-muted)]">
+            正在读取模板选项...
+          </div>
+
+          <div v-else-if="artPromptTemplatesStore.error" class="border-l-2 border-red-500/40 bg-red-500/8 px-4 py-3 text-sm text-red-500">
+            {{ artPromptTemplatesStore.error }}
+          </div>
+
+          <div v-else-if="artPromptTemplatesStore.options.length === 0" class="border-l-2 border-[var(--color-border)]/80 bg-[var(--color-surface-elevated)]/25 px-4 py-4 text-sm text-[var(--color-text-muted)]">
+            当前还没有可用生成模板，先在 `art_prompt_templates` 里 seed 一条已激活模板后再生成。
+          </div>
+
+          <div v-if="artPromptTemplatesStore.options.length > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <button
+              v-for="template in artPromptTemplatesStore.options"
+              :key="template.id"
+              type="button"
+              :class="templateCardClass(selectedTemplateKey === template.id)"
+              @click="selectedTemplateKey = template.id"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="min-w-0 text-sm font-semibold break-words text-[var(--color-text)] sm:text-base">
+                    {{ template.label }}
+                  </p>
+                  <p
+                    class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium tracking-[0.04em] break-all"
+                    :class="cn(template.accentClass)"
+                  >
+                    {{ selectedTemplateKey === template.id ? '已选模板' : '可选模板' }}
+                  </p>
+                </div>
+                <span class="max-w-[45%] rounded-full px-2.5 py-1 text-[11px] font-medium break-all sm:max-w-[52%]" :class="cn(template.accentClass)">
+                  {{ template.id }}
+                </span>
+              </div>
+              <p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
+                {{ template.description }}
+              </p>
+            </button>
+          </div>
+
+          <label class="inline-flex items-center gap-3 text-sm text-[var(--color-text)]">
+            <input v-model="includeTitle" type="checkbox" class="h-4 w-4 rounded border-[var(--color-border)]">
+            在首版输出中保留活动标题
+          </label>
+
+          <div v-if="createFeedback" class="border-l-2 border-emerald-500/40 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-700">
+            {{ createFeedback }}
+          </div>
+
+          <div v-if="authStore.isLoggedIn && !authStore.isActive" class="border-l-2 border-amber-500/40 bg-amber-500/8 px-4 py-3 text-sm text-amber-700">
+            当前账号尚未激活，暂时不能提交生成任务。请先由管理员手动激活账号。
+          </div>
+
+          <div v-if="artJobsStore.error" class="border-l-2 border-red-500/40 bg-red-500/8 px-4 py-3 text-sm text-red-500">
+            {{ artJobsStore.error }}
+          </div>
+
+          <div v-if="artResultsStore.error" class="border-l-2 border-red-500/40 bg-red-500/8 px-4 py-3 text-sm text-red-500">
+            {{ artResultsStore.error }}
+          </div>
+
+          <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <button
+              class="btn btn-primary w-full justify-center sm:w-auto"
+              :disabled="!activity.is_generatable || !authStore.isActive || !selectedTemplateKey || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
+              @click="createArtJob"
+            >
+              <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="mr-2 h-4 w-4 animate-spin" />
+              <WandSparkles v-else class="mr-2 h-4 w-4" />
+              {{
+                artJobsStore.creating
+                  ? '正在创建任务...'
+                  : artJobsStore.uploadingRouteBase
+                    ? '正在上传轨迹底稿...'
+                    : artResultsStore.queueing
+                      ? '正在加入队列...'
+                      : '生成成品'
+              }}
+            </button>
+            <p class="text-sm leading-6 text-[var(--color-text-muted)]">
+              {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由后台 worker 异步消费队列并产出成品。' : '当前活动不可生成，按钮已禁用。' }}
+            </p>
           </div>
         </article>
 
-        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+        <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
           <div class="flex items-start gap-3">
             <Sparkles class="mt-1 h-5 w-5 shrink-0 text-primary" />
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 flex-1 space-y-5">
               <h2 class="text-base font-semibold text-[var(--color-text)]">
                 生成任务
               </h2>
               <p class="mt-2 text-sm leading-7 text-[var(--color-text-muted)]">
                 当前活动下的任务会记录生成状态；如果任务已经完成，这里会直接显示对应的生成图片。
               </p>
-
-              <div v-if="artJobsStore.loading" class="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                正在读取历史任务...
-              </div>
-
-              <div v-else-if="artJobsStore.jobs.length === 0" class="mt-5 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-elevated)]/35 px-4 py-5 text-sm text-[var(--color-text-muted)]">
-                还没有生成任务。你可以先选一个模板，然后把这条活动落成第一条 `art_jobs` 记录。
-              </div>
-
-              <div v-else class="mt-5 grid gap-3">
-                <ArtJobCard
-                  v-for="job in artJobsStore.jobs"
-                  :key="job.id"
-                  :job="job"
-                  :is-active="artJobsStore.activeJob?.id === job.id"
-                  @open-result="openResult"
-                />
-              </div>
-
-              <div v-if="hasJobResults" class="mt-5 flex justify-start">
-                <button type="button" class="btn btn-ghost w-full justify-center sm:w-auto" @click="openAllResults">
-                  查看更多结果
-                </button>
-              </div>
             </div>
+          </div>
+
+          <div v-if="artJobsStore.loading" class="border-l-2 border-[var(--color-border)]/80 bg-[var(--color-surface-elevated)]/35 px-4 py-3 text-sm text-[var(--color-text-muted)]">
+            正在读取历史任务...
+          </div>
+
+          <div v-else-if="artJobsStore.jobs.length === 0" class="border-l-2 border-[var(--color-border)]/80 bg-[var(--color-surface-elevated)]/25 px-4 py-4 text-sm text-[var(--color-text-muted)]">
+            还没有生成任务。你可以先选一个模板，然后把这条活动落成第一条 `art_jobs` 记录。
+          </div>
+
+          <div v-else class="grid gap-3">
+            <ArtJobCard
+              v-for="job in artJobsStore.jobs"
+              :key="job.id"
+              :job="job"
+              :is-active="artJobsStore.activeJob?.id === job.id"
+              @open-result="openResult"
+            />
+          </div>
+
+          <div v-if="hasJobResults" class="flex justify-start">
+            <button type="button" class="btn btn-ghost w-full justify-center sm:w-auto" @click="openAllResults">
+              查看更多结果
+            </button>
           </div>
         </article>
       </section>

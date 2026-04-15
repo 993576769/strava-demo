@@ -53,7 +53,7 @@ const openPromptTemplates = () => {
             GitHub 登录、Strava 同步和成品生成链路已经接通。
           </h2>
           <p class="mt-4 leading-7 text-[var(--color-text-muted)]">
-            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成成品图；未配置 Doubao Seedream 5.0 时会自动回退到 mock。
+            现在首页已经从模板示例页切成产品控制台壳层。你可以在这里连接 Strava、触发同步、查看活动，再把活动生成成成品图；当前生成链路统一使用 Doubao Seedream 5.0。
           </p>
 
           <p class="mt-4 text-sm text-[var(--color-text-muted)]">
@@ -69,7 +69,7 @@ const openPromptTemplates = () => {
                   : (strava.canConnect ? '连接 Strava' : 'Strava 状态已读取')
               }}
             </button>
-            <button class="btn btn-primary" :disabled="!strava.canSync" @click="syncActivities">
+            <button v-if="strava.canSync" class="btn btn-primary" @click="syncActivities">
               <Download class="mr-2 h-4 w-4" />
               {{ strava.syncing ? '正在同步活动...' : '同步活动' }}
             </button>

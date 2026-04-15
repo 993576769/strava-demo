@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Activity, ArtJob } from '@/types/pocketbase'
-import { ArrowRight, CheckCircle2, History, RefreshCw, Route, Sparkles } from 'lucide-vue-next'
+import { CheckCircle2, History, RefreshCw, Route, Sparkles } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
@@ -177,6 +177,33 @@ const openResult = (resultId: string) => {
   router.push({ name: 'art-result-detail', params: { id: resultId } })
 }
 
+const openHistoryCard = (job: HistoryJob) => {
+  if (job.result?.id) {
+    openResult(job.result.id)
+    return
+  }
+
+  if (job.activityRecord?.id) {
+    openActivity(job.activityRecord.id)
+  }
+}
+
+const isHistoryCardInteractive = (job: HistoryJob) => {
+  return Boolean(job.result?.id || job.activityRecord?.id)
+}
+
+const historyCardHint = (job: HistoryJob) => {
+  if (job.result?.id) {
+    return '点击卡片查看成品详情'
+  }
+
+  if (job.activityRecord?.id) {
+    return '点击卡片查看活动详情'
+  }
+
+  return ''
+}
+
 onMounted(() => {
   void refresh()
 })
@@ -212,6 +239,12 @@ onMounted(() => {
           v-for="job in jobs"
           :key="job.id"
           class="rounded-[30px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-7"
+          :class="isHistoryCardInteractive(job) ? 'cursor-pointer transition hover:border-primary/35 hover:shadow-[0_22px_48px_rgba(79,70,229,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40' : ''"
+          :role="isHistoryCardInteractive(job) ? 'button' : undefined"
+          :tabindex="isHistoryCardInteractive(job) ? 0 : undefined"
+          @click="isHistoryCardInteractive(job) ? openHistoryCard(job) : undefined"
+          @keydown.enter.prevent="isHistoryCardInteractive(job) ? openHistoryCard(job) : undefined"
+          @keydown.space.prevent="isHistoryCardInteractive(job) ? openHistoryCard(job) : undefined"
         >
           <div
             class="flex flex-col gap-6"
@@ -246,14 +279,9 @@ onMounted(() => {
                 </span>
               </div>
 
-              <button
-                v-if="job.activityRecord"
-                class="mt-4 btn btn-ghost"
-                @click="openActivity(job.activityRecord.id)"
-              >
-                查看活动
-                <ArrowRight class="ml-2 h-4 w-4" />
-              </button>
+              <p v-if="historyCardHint(job)" class="mt-4 text-sm text-[var(--color-text-muted)]">
+                {{ historyCardHint(job) }}
+              </p>
 
               <p v-if="job.error_message" class="mt-4 min-w-0 max-w-full overflow-hidden whitespace-pre-wrap break-all text-sm text-red-500">
                 {{ job.error_message }}
@@ -261,20 +289,17 @@ onMounted(() => {
             </div>
 
             <div v-if="job.result" class="w-full xl:w-80">
-              <button
-                class="block w-full overflow-hidden rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)]/30 text-left transition hover:border-primary/40"
-                @click="openResult(job.result.id)"
-              >
+              <div class="block w-full overflow-hidden rounded-3xl border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)]/30 text-left">
                 <img
                   :src="job.result.thumbnail_data_uri || job.result.image_data_uri"
                   :alt="job.result.title_snapshot || 'Art result preview'"
                   class="h-56 w-full object-cover"
                 >
                 <div class="flex items-center justify-between border-t border-[var(--color-border)]/60 px-4 py-3 text-sm">
-                  <span class="font-medium text-[var(--color-text)]">查看成品</span>
+                  <span class="font-medium text-[var(--color-text)]">成品预览</span>
                   <CheckCircle2 class="h-4 w-4 text-emerald-600" />
                 </div>
-              </button>
+              </div>
             </div>
           </div>
         </article>

@@ -1,4 +1,3 @@
-import type { AspectRatio } from '@/lib/art-presets'
 import type { ArtJob, ArtResult } from '@/types/pocketbase'
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
@@ -19,7 +18,6 @@ interface UploadRouteBaseResponse {
 interface CreateJobParams {
   activityId: string
   templateKey: string
-  aspectRatio: AspectRatio
   includeTitle: boolean
 }
 
@@ -76,7 +74,6 @@ export const useArtJobsStore = defineStore('artJobs', () => {
           activityId: params.activityId,
           templateKey: params.templateKey,
           renderOptions: {
-            aspectRatio: params.aspectRatio,
             includeTitle: params.includeTitle,
             includeStats: true,
           },

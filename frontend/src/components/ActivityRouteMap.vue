@@ -459,10 +459,11 @@ const buildImageDataUrl = async () => {
   if (!map) { return null }
 
   const canvas = map.getCanvas()
+  const squareSide = Math.max(canvas.width, canvas.height)
   const hdCanvas = document.createElement('canvas')
   const scale = EXPORT_SCALE
-  hdCanvas.width = canvas.width * scale
-  hdCanvas.height = canvas.height * scale
+  hdCanvas.width = squareSide * scale
+  hdCanvas.height = squareSide * scale
   const context = hdCanvas.getContext('2d')
 
   if (!context) {
@@ -470,7 +471,13 @@ const buildImageDataUrl = async () => {
   }
 
   context.scale(scale, scale)
-  context.drawImage(canvas, 0, 0)
+  context.fillStyle = '#f8fafc'
+  context.fillRect(0, 0, squareSide, squareSide)
+  context.drawImage(
+    canvas,
+    Math.round((squareSide - canvas.width) / 2),
+    Math.round((squareSide - canvas.height) / 2),
+  )
   return hdCanvas.toDataURL(exportMimeType)
 }
 

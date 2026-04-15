@@ -24,7 +24,6 @@ module.exports = {
       size: this.getOptionalEnv("DOUBAO_IMAGE_SIZE", "2K"),
       outputFormat: this.getOptionalEnv("DOUBAO_OUTPUT_FORMAT", "png"),
       responseFormat: this.getOptionalEnv("DOUBAO_RESPONSE_FORMAT", "url") === "b64_json" ? "b64_json" : "url",
-      watermark: this.getOptionalEnv("DOUBAO_WATERMARK", "true") !== "false",
     }
   },
 
@@ -74,12 +73,6 @@ module.exports = {
     var startDate = activityRecord.getString("start_date") || ""
     var templateConfig = art.getPromptTemplateConfig("doubao-seedream", templateKey)
 
-    var ratioPromptMap = {
-      portrait: "竖版海报构图",
-      square: "方形社交媒体构图",
-      landscape: "横版宽幅构图",
-    }
-
     var titleInstruction = renderOptions.includeTitle
       ? "为标题和日期预留干净的信息区，但不要直接渲染真实文字。"
       : "不要出现任何文字、logo 或界面元素。"
@@ -87,7 +80,6 @@ module.exports = {
     return art.renderPromptTemplate(
       templateConfig.promptTemplate,
       {
-        ratio_prompt: ratioPromptMap[renderOptions.aspectRatio] || ratioPromptMap.portrait,
         title_instruction: titleInstruction,
         title: title,
         sport_type: sportType,

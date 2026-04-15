@@ -71,8 +71,6 @@ cp frontend/.env.example frontend/.env
   用于 Strava webhook 验证，建议与 state secret 分开设置
 - `STRAVA_SCOPES`
   默认建议 `read,activity:read_all`
-- `ART_RENDER_PROVIDER`
-  可选 `mock` 或 `doubao-seedream`；不填时会自动判断，如果 `ARK_API_KEY` 存在则优先走 `doubao-seedream`
 - `ART_ASSET_BASE_URL`
   公开可访问的应用域名，用来拼接轨迹底稿图片 URL；图生图模式下必须能被火山引擎访问
 - `ARK_API_KEY`
@@ -90,8 +88,6 @@ cp frontend/.env.example frontend/.env
   默认 `png`
 - `DOUBAO_RESPONSE_FORMAT`
   默认 `url`
-- `DOUBAO_WATERMARK`
-  默认 `true`
 - `DOUBAO_HELPER_HOST`
   默认 `127.0.0.1`
 - `DOUBAO_HELPER_PORT`
@@ -171,7 +167,7 @@ pnpm run dev:web
 3. 授权成功后进入活动页。
 4. 点击“同步活动”。
 5. 打开某条活动详情，创建生成任务。
-6. 如果已配置 `doubao-seedream-5-0-260128`，等待远端生成完成；否则会自动回退到 mock。
+6. 确保已配置 `doubao-seedream-5-0-260128` 所需环境变量，等待远端生成完成。
 7. 查看结果页并下载成品。
 
 ## 常用命令

@@ -130,7 +130,7 @@ onMounted(async () => {
               <Link2 class="mr-2 h-4 w-4" />
               {{ stravaStore.connecting ? '正在跳转到 Strava...' : '连接 Strava' }}
             </button>
-            <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
+            <button v-if="stravaStore.canSync" class="btn btn-primary" @click="syncActivities">
               <Download class="mr-2 h-4 w-4" />
               {{
                 stravaStore.activeSyncMode === 'incremental'
@@ -147,7 +147,7 @@ onMounted(async () => {
               </template>
 
               <template #default="{ close }">
-                <button class="btn btn-ghost !justify-start" :disabled="!stravaStore.canSync" @click="close(); backfillHistory()">
+                <button v-if="stravaStore.canSync" class="btn btn-ghost !justify-start" @click="close(); backfillHistory()">
                   <Download class="mr-2 h-4 w-4" />
                   {{ stravaStore.activeSyncMode === 'history' ? '正在回填历史...' : '加载更早活动' }}
                 </button>
@@ -239,7 +239,7 @@ onMounted(async () => {
               <Link2 class="mr-2 h-4 w-4" />
               {{ stravaStore.connecting ? '正在跳转到 Strava...' : '开始连接 Strava' }}
             </button>
-            <button class="btn btn-primary" :disabled="!stravaStore.canSync" @click="syncActivities">
+            <button v-if="stravaStore.canSync" class="btn btn-primary" @click="syncActivities">
               <Download class="mr-2 h-4 w-4" />
               {{ stravaStore.activeSyncMode === 'incremental' ? '正在同步活动...' : '同步首批活动' }}
             </button>
@@ -252,7 +252,7 @@ onMounted(async () => {
               </template>
 
               <template #default="{ close }">
-                <button class="btn btn-ghost !justify-start" :disabled="!stravaStore.canSync" @click="close(); backfillHistory()">
+                <button v-if="stravaStore.canSync" class="btn btn-ghost !justify-start" @click="close(); backfillHistory()">
                   <Download class="mr-2 h-4 w-4" />
                   {{ stravaStore.activeSyncMode === 'history' ? '正在回填历史...' : '加载更早活动' }}
                 </button>

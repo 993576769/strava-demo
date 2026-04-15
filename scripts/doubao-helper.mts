@@ -1,6 +1,7 @@
-import http from 'node:http'
 import process from 'node:process'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { serve } from '@hono/node-server'
+import { Hono } from 'hono'
 import { loadEnv } from './load-env.mts'
 
 type GenerateImagePayload = {
@@ -56,25 +57,6 @@ const defaultModel = process.env.DOUBAO_SEEDREAM_MODEL || 'doubao-seedream-5-0-2
 const defaultSize = process.env.DOUBAO_IMAGE_SIZE || '2K'
 const defaultOutputFormat = process.env.DOUBAO_OUTPUT_FORMAT || 'png'
 const defaultResponseFormat = (process.env.DOUBAO_RESPONSE_FORMAT || 'url') === 'b64_json' ? 'b64_json' : 'url'
-const defaultWatermark = process.env.DOUBAO_WATERMARK !== 'false'
-
-const json = (res: http.ServerResponse, status: number, payload: Record<string, unknown>) => {
-  res.writeHead(status, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify(payload))
-}
-
-const readJsonBody = async <T,>(req: http.IncomingMessage): Promise<T> => {
-  let raw = ''
-  for await (const chunk of req) {
-    raw += typeof chunk === 'string' ? chunk : chunk.toString('utf8')
-  }
-
-  if (!raw) {
-    return {} as T
-  }
-
-  return JSON.parse(raw) as T
-}
 
 const getApiKey = () => {
   const apiKey = process.env.ARK_API_KEY
@@ -149,7 +131,7 @@ const buildRequestBody = (payload: GenerateImagePayload, prompt: string) => {
     prompt,
     size: payload.size || defaultSize,
     output_format: payload.outputFormat || defaultOutputFormat,
-    watermark: payload.watermark ?? defaultWatermark,
+    watermark: false,
     sequential_image_generation: sequentialImageGeneration,
   }
 
@@ -322,54 +304,52 @@ const postImagesGeneration = async (body: Record<string, unknown>) => {
   }
 }
 
-const server = http.createServer(async (req, res) => {
-  if (!req.url) {
-    json(res, 400, { error: 'Missing request url.' } satisfies ErrorPayload)
-    return
+const app = new Hono()
+
+app.notFound(c => {
+  return c.json({ error: 'Not found.' } satisfies ErrorPayload, 404)
+})
+
+app.get('/health', c => {
+  return c.json({ ok: true })
+})
+
+app.post('/s3-upload', async (c) => {
+  let payload: S3UploadPayload
+  try {
+    payload = await c.req.json<S3UploadPayload>()
+  } catch (error) {
+    return c.json(
+      { error: error instanceof Error ? error.message : 'Invalid JSON body.' } satisfies ErrorPayload,
+      400,
+    )
   }
 
-  if (req.method === 'GET' && req.url === '/health') {
-    json(res, 200, { ok: true })
-    return
+  try {
+    const uploaded = await uploadToS3(payload)
+    return c.json(uploaded)
+  } catch (error) {
+    return c.json(
+      { error: error instanceof Error ? error.message : 'Failed to upload to S3.' } satisfies ErrorPayload,
+      502,
+    )
   }
+})
 
-  if (req.method === 'POST' && req.url === '/s3-upload') {
-    let payload: S3UploadPayload
-    try {
-      payload = await readJsonBody<S3UploadPayload>(req)
-    } catch (error) {
-      json(res, 400, { error: error instanceof Error ? error.message : 'Invalid JSON body.' } satisfies ErrorPayload)
-      return
-    }
-
-    try {
-      const uploaded = await uploadToS3(payload)
-      json(res, 200, uploaded)
-    } catch (error) {
-      json(res, 502, {
-        error: error instanceof Error ? error.message : 'Failed to upload to S3.',
-      } satisfies ErrorPayload)
-    }
-    return
-  }
-
-  if (req.method !== 'POST' || req.url !== '/images/generate') {
-    json(res, 404, { error: 'Not found.' } satisfies ErrorPayload)
-    return
-  }
-
+app.post('/images/generate', async (c) => {
   let payload: GenerateImagePayload
   try {
-    payload = await readJsonBody<GenerateImagePayload>(req)
+    payload = await c.req.json<GenerateImagePayload>()
   } catch (error) {
-    json(res, 400, { error: error instanceof Error ? error.message : 'Invalid JSON body.' } satisfies ErrorPayload)
-    return
+    return c.json(
+      { error: error instanceof Error ? error.message : 'Invalid JSON body.' } satisfies ErrorPayload,
+      400,
+    )
   }
 
   const prompt = String(payload.prompt || '').trim()
   if (!prompt) {
-    json(res, 400, { error: 'Missing prompt.' } satisfies ErrorPayload)
-    return
+    return c.json({ error: 'Missing prompt.' } satisfies ErrorPayload, 400)
   }
 
   try {
@@ -399,7 +379,7 @@ const server = http.createServer(async (req, res) => {
         }))
       : []
 
-    json(res, 200, {
+    return c.json({
       created: typeof imageResponse.created === 'number' ? imageResponse.created : 0,
       data,
       model: payload.model || defaultModel,
@@ -409,20 +389,30 @@ const server = http.createServer(async (req, res) => {
       image: fallbackUsed ? [imageList[0]] : imageList,
       fallbackUsed,
       requestBody: body,
-      watermark: payload.watermark ?? defaultWatermark,
+      watermark: false,
       sequentialImageGeneration,
     })
   } catch (error) {
     const details = extractError(error)
-    json(res, details.status >= 400 ? details.status : 502, {
+    const status = details.status >= 400 ? details.status : 502
+    return new Response(JSON.stringify({
       error: details.message,
       code: details.code,
       status: details.status,
-    } satisfies ErrorPayload)
+    } satisfies ErrorPayload), {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
   }
 })
 
-server.listen(helperPort, helperHost, () => {
+const server = serve({
+  fetch: app.fetch,
+  hostname: helperHost,
+  port: helperPort,
+}, () => {
   process.stdout.write(`Doubao helper listening at http://${helperHost}:${helperPort}\n`)
 })
 

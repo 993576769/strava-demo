@@ -23,21 +23,12 @@ module.exports = {
   },
 
   getRequestedProvider: function (forceProvider) {
-    if (forceProvider) {
-      return forceProvider
-    }
-
-    var envProvider = String($os.getenv("ART_RENDER_PROVIDER") || "").trim().toLowerCase()
-    if (envProvider === "mock" || envProvider === "doubao-seedream" || envProvider === "doubao") {
-      return envProvider === "doubao" ? "doubao-seedream" : envProvider
-    }
-
     var doubao = require(__hooks + "/doubao.js")
     if (doubao.isConfigured()) {
       return "doubao-seedream"
     }
 
-    return "mock"
+    throw new BadRequestError("Doubao Seedream is not configured")
   },
 
   getExistingResult: function (app, userId, jobId) {
@@ -115,13 +106,24 @@ module.exports = {
   },
 
   getCanvasSize: function (aspectRatio) {
-    var mockArt = require(__hooks + "/mock-art.js")
-    return mockArt.aspectRatioSizes[aspectRatio] || mockArt.aspectRatioSizes.portrait
+    var sizes = {
+      portrait: { width: 1200, height: 1600 },
+      square: { width: 1400, height: 1400 },
+      landscape: { width: 1600, height: 1100 },
+    }
+    return sizes[aspectRatio] || sizes.square
   },
 
   buildSubtitle: function (activityRecord) {
-    var mockArt = require(__hooks + "/mock-art.js")
-    return mockArt.subtitleText(activityRecord)
+    var dateText = ""
+    var startDate = activityRecord.getString("start_date")
+    if (startDate) {
+      dateText = startDate.slice(0, 10)
+    }
+
+    var distanceMeters = activityRecord.getFloat("distance_meters") || 0
+    var distanceText = distanceMeters > 0 ? (distanceMeters / 1000).toFixed(1) + " km" : "Distance N/A"
+    return [distanceText, dateText].filter(Boolean).join(" · ")
   },
 
   sanitizeMetadataValue: function (value, depth) {
@@ -482,13 +484,6 @@ module.exports = {
     }
   },
 
-  buildMockAssets: function (activityRecord, streamRecord, stylePreset, renderOptions) {
-    var mockArt = require(__hooks + "/mock-art.js")
-    var assets = mockArt.buildMockAssets(activityRecord, streamRecord, stylePreset, renderOptions)
-    assets.mimeType = "image/svg+xml"
-    return assets
-  },
-
   processContext: function (app, context, options) {
     var art = require(__hooks + "/art.js")
     var existingResult = this.getExistingResult(app, context.userId, context.job.id)
@@ -507,12 +502,10 @@ module.exports = {
 
     var renderOptions = art.normalizeRenderOptions(context.job.getRaw("render_options_json"))
     var stylePreset = art.normalizeTemplateKey(context.job.getString("style_preset"), "doubao-seedream")
-    var provider = this.getRequestedProvider(options && options.forceProvider)
+    var provider = this.getRequestedProvider()
     var workerRef = options && options.workerRef
       ? options.workerRef
-      : provider === "doubao-seedream"
-          ? "doubao-seedream-5.0"
-          : "mock-svg-renderer:v1"
+      : "doubao-seedream-5.0"
 
     if (options && options.requireClaimedWorker) {
       this.assertProcessingClaim(context.job, workerRef)
@@ -521,9 +514,7 @@ module.exports = {
     }
 
     try {
-      var assets = provider === "doubao-seedream"
-          ? this.buildDoubaoAssets(context.job, context.activity, stylePreset, renderOptions)
-          : this.buildMockAssets(context.activity, context.stream, stylePreset, renderOptions)
+      var assets = this.buildDoubaoAssets(context.job, context.activity, stylePreset, renderOptions)
 
       var resultRecord = this.createResultRecord(app, {
         jobId: context.job.id,
@@ -553,9 +544,7 @@ module.exports = {
       this.markJobFailed(
         app,
         context.job,
-        provider === "doubao-seedream"
-            ? "doubao_render_failed"
-            : "mock_render_failed",
+        "doubao_render_failed",
         err
       )
       throw err
