@@ -33,7 +33,7 @@ jobs:
           repo="${repo,,}"
 
           echo "frontend_image=ghcr.io/${owner}/${repo}-frontend" >> "$GITHUB_OUTPUT"
-          echo "pocketbase_image=ghcr.io/${owner}/${repo}-pocketbase" >> "$GITHUB_OUTPUT"
+          echo "server_image=ghcr.io/${owner}/${repo}-server" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -65,25 +65,25 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
-      - name: Extract metadata for PocketBase image
-        id: meta-pocketbase
+      - name: Extract metadata for server image
+        id: meta-server
         uses: docker/metadata-action@v5
         with:
-          images: ${{ steps.meta.outputs.pocketbase_image }}
+          images: ${{ steps.meta.outputs.server_image }}
           tags: |
             type=sha,prefix=sha-
             type=raw,value=master
 
-      - name: Build and push PocketBase image
+      - name: Build and push server image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./pocketbase/Dockerfile
+          file: ./server/Dockerfile
           push: true
-          tags: ${{ steps.meta-pocketbase.outputs.tags }}
-          labels: ${{ steps.meta-pocketbase.outputs.labels }}
-          cache-from: type=gha,scope=pocketbase
-          cache-to: type=gha,mode=max,scope=pocketbase
+          tags: ${{ steps.meta-server.outputs.tags }}
+          labels: ${{ steps.meta-server.outputs.labels }}
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -107,19 +107,19 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           FRONTEND_IMAGE: ${{ steps.meta.outputs.frontend_image }}
-          POCKETBASE_IMAGE: ${{ steps.meta.outputs.pocketbase_image }}
+          SERVER_IMAGE: ${{ steps.meta.outputs.server_image }}
         run: |
           set -euo pipefail
 
           ghcr_username_b64="$(printf '%s' "${GHCR_USERNAME}" | base64)"
           ghcr_token_b64="$(printf '%s' "${GHCR_TOKEN}" | base64)"
           frontend_image_b64="$(printf '%s' "${FRONTEND_IMAGE}" | base64)"
-          pocketbase_image_b64="$(printf '%s' "${POCKETBASE_IMAGE}" | base64)"
+          server_image_b64="$(printf '%s' "${SERVER_IMAGE}" | base64)"
 
           ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" \
             "export GHCR_USERNAME=\$(printf '%s' '${ghcr_username_b64}' | base64 -d); \
              export GHCR_TOKEN=\$(printf '%s' '${ghcr_token_b64}' | base64 -d); \
              export FRONTEND_IMAGE=\$(printf '%s' '${frontend_image_b64}' | base64 -d); \
-             export POCKETBASE_IMAGE=\$(printf '%s' '${pocketbase_image_b64}' | base64 -d); \
+             export SERVER_IMAGE=\$(printf '%s' '${server_image_b64}' | base64 -d); \
              export IMAGE_TAG='master'; \
              bash /root/strava/deploy.sh"

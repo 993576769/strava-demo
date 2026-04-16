@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
   const devPort = parsePort(env.VITE_DEV_PORT) ?? 5173
 
   return {
+    clearScreen: false,
     plugins: [vue()],
     resolve: {
       alias: {

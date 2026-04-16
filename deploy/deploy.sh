@@ -7,7 +7,7 @@ cd /root/strava
 : "${GHCR_USERNAME:?set GHCR_USERNAME}"
 : "${GHCR_TOKEN:?set GHCR_TOKEN}"
 : "${FRONTEND_IMAGE:?set FRONTEND_IMAGE}"
-: "${POCKETBASE_IMAGE:?set POCKETBASE_IMAGE}"
+: "${SERVER_IMAGE:?set SERVER_IMAGE}"
 
 export IMAGE_TAG="${IMAGE_TAG:-master}"
 

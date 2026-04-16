@@ -32,6 +32,7 @@ const selectedTemplateKey = ref('')
 const includeTitle = ref(true)
 const createFeedback = ref('')
 let queuePollingTimer: number | null = null
+const fallbackTemplateKey = 'default-route-art'
 
 const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
   if (value && typeof value === 'object' && !Array.isArray(value)) { return value as Record<string, unknown> }
@@ -83,6 +84,25 @@ const routePoints = computed(() => {
     ?? null
 })
 const routeAltitudes = computed(() => activityStreamsStore.currentStream?.altitude_stream_json ?? null)
+const resolvedTemplateKey = computed(() => {
+  return selectedTemplateKey.value || artPromptTemplatesStore.defaultTemplateKey || fallbackTemplateKey
+})
+const createDisabledReason = computed(() => {
+  if (!activity.value?.is_generatable) {
+    return '当前活动还不满足生成条件。'
+  }
+
+  if (!authStore.isActive) {
+    return '当前账号尚未激活，暂时不能提交生成任务。'
+  }
+
+  if (artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing) {
+    return '当前已有生成流程正在执行，请等待完成。'
+  }
+
+  return ''
+})
+const canCreateArtJob = computed(() => !createDisabledReason.value)
 
 const getResultRendererLabel = (result: unknown) => {
   if (!result || typeof result !== 'object') { return '成品' }
@@ -133,6 +153,9 @@ const loadPage = async () => {
       artJobsStore.fetchJobsForActivity(activityId.value, {
         perPage: 3,
       }),
+      artResultsStore.fetchResultsForActivity(activityId.value, {
+        perPage: 6,
+      }),
       artPromptTemplatesStore.fetchTemplates(),
     ])
   }
@@ -152,7 +175,14 @@ const refreshQueueState = async () => {
     artJobsStore.fetchJobsForActivity(activityId.value, {
       perPage: 3,
     }),
+    artResultsStore.fetchResultsForActivity(activityId.value, {
+      perPage: 6,
+    }),
   ])
+
+  if (!artJobsStore.activeJob) {
+    stopQueuePolling()
+  }
 }
 
 const ensureQueuePolling = () => {
@@ -170,7 +200,7 @@ const createArtJob = async () => {
 
   const job = await artJobsStore.createJob({
     activityId: activity.value.id,
-    templateKey: selectedTemplateKey.value || artPromptTemplatesStore.defaultTemplateKey,
+    templateKey: resolvedTemplateKey.value,
     includeTitle: includeTitle.value,
   })
 
@@ -201,6 +231,11 @@ const createArtJob = async () => {
 
   const queued = await artResultsStore.queueJob(job.id)
   await refreshQueueState()
+
+  if (!queued) {
+    createFeedback.value = artResultsStore.error || '加入生成队列失败，请稍后重试。'
+    return
+  }
 
   if (artJobsStore.activeJob) {
     ensureQueuePolling()
@@ -430,8 +465,9 @@ onUnmounted(() => {
 
           <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
+              type="button"
               class="btn btn-primary w-full justify-center sm:w-auto"
-              :disabled="!activity.is_generatable || !authStore.isActive || !selectedTemplateKey || artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing"
+              :disabled="!canCreateArtJob"
               @click="createArtJob"
             >
               <Loader2 v-if="artJobsStore.creating || artJobsStore.uploadingRouteBase || artResultsStore.queueing" class="mr-2 h-4 w-4 animate-spin" />
@@ -447,7 +483,13 @@ onUnmounted(() => {
               }}
             </button>
             <p class="text-sm leading-6 text-[var(--color-text-muted)]">
-              {{ activity.is_generatable ? '这一步会先创建任务、上传轨迹底稿，再由后台 worker 异步消费队列并产出成品。' : '当前活动不可生成，按钮已禁用。' }}
+              {{
+                canCreateArtJob
+                  ? (artPromptTemplatesStore.options.length === 0
+                    ? '当前还没有数据库模板，先使用内置默认模板 key 创建任务；后续可再补充模板管理数据。'
+                    : '这一步会先创建任务、上传轨迹底稿，再由后台 worker 异步消费队列并产出成品。')
+                  : createDisabledReason
+              }}
             </p>
           </div>
         </article>

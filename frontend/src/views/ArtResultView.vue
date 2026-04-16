@@ -115,7 +115,7 @@ onUnmounted(() => {
         <article class="rounded-4xl border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6">
           <button
             type="button"
-            class="group block w-full cursor-zoom-in text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            class="group block w-full cursor-zoom-in text-left focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
             @click="openPreview"
           >
             <img
@@ -194,7 +194,7 @@ onUnmounted(() => {
             </p>
             <button
               type="button"
-              class="rounded-full border border-white/20 px-3 py-1.5 text-sm transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              class="rounded-full border border-white/20 px-3 py-1.5 text-sm transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
               @click="closePreview"
             >
               关闭

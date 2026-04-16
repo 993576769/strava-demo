@@ -1,16 +1,11 @@
-import type { RecordService } from 'pocketbase'
-import type { User, UserCreate, UserUpdate } from '@/types/pocketbase'
+import type { User } from '@/types/api'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { pb, usersCollection } from '@/lib/pocketbase'
-import { isUser } from '@/types/pocketbase'
+import { api, clearAccessToken, setAccessToken } from '@/lib/api'
+import { isUser } from '@/types/api'
 
 const toUserRecord = (value: unknown): User | null => {
   return isUser(value) ? value : null
-}
-
-type OAuthRecordService = RecordService<User> & {
-  authWithOAuth2: (options: { provider: string }) => Promise<{ record?: unknown, meta?: Record<string, unknown> }>
 }
 
 const usernameAdjectives = [
@@ -76,6 +71,7 @@ const shouldReplaceGeneratedName = (name?: string | null) => {
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
+  const initialized = ref(false)
 
   const ensureUsername = async (candidate: User | null, oauthMeta?: Record<string, unknown>) => {
     if (!candidate) { return candidate }
@@ -87,85 +83,85 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (!nextName || candidate.name === nextName) { return candidate }
 
-    const payload: UserUpdate = {
+    user.value = {
+      ...candidate,
       name: nextName,
     }
-
-    const updated = await usersCollection().update(candidate.id, payload)
-    user.value = toUserRecord(updated)
     return user.value
   }
 
-  if (pb.authStore.isValid && pb.authStore.record) {
-    user.value = toUserRecord(pb.authStore.record)
-    void ensureUsername(user.value)
-  }
-
-  const isLoggedIn = computed(() => !!user.value && pb.authStore.isValid)
+  const isLoggedIn = computed(() => !!user.value)
   const isActive = computed(() => user.value?.is_active === true)
   const isAdmin = computed(() => user.value?.is_admin === true)
   const displayName = computed(() => user.value?.name || user.value?.email || '运动用户')
 
-  pb.authStore.onChange((_token, model) => {
-    user.value = toUserRecord(model)
-    void ensureUsername(user.value)
-  })
+  const initialize = async () => {
+    if (initialized.value) { return }
 
-  // 预留给后续账号密码登录
-  const login = async (email: string, password: string) => {
-    const auth = await usersCollection().authWithPassword(email, password)
-    user.value = toUserRecord(auth.record)
-    await ensureUsername(user.value)
-    return auth
-  }
-
-  // 预留给后续账号密码注册
-  const register = async (email: string, password: string, name?: string) => {
-    const payload: UserCreate = {
-      email,
-      password,
-      passwordConfirm: password,
+    try {
+      const session = await api.auth.getSession()
+      if (session.accessToken) {
+        setAccessToken(session.accessToken)
+      }
+      user.value = toUserRecord(session.user)
+      await ensureUsername(user.value)
     }
-    if (name) { payload.name = name }
-
-    const newUser = await usersCollection().create(payload)
-    await login(email, password)
-    return newUser
-  }
-
-  const loginWithGitHub = async () => {
-    const collection = usersCollection() as OAuthRecordService
-    const auth = await collection.authWithOAuth2({ provider: 'github' })
-    user.value = toUserRecord(auth.record ?? pb.authStore.record)
-    await ensureUsername(user.value, auth.meta)
-    return auth
-  }
-
-  const logout = () => {
-    pb.authStore.clear()
-    user.value = null
+    catch {
+      clearAccessToken()
+      user.value = null
+    }
+    finally {
+      initialized.value = true
+    }
   }
 
   const refresh = async () => {
-    if (!pb.authStore.isValid) { return }
-    const fresh = await usersCollection().authRefresh()
-    user.value = toUserRecord(fresh.record)
+    const fresh = await api.auth.getSession()
+    if (fresh.accessToken) {
+      setAccessToken(fresh.accessToken)
+    }
+    user.value = toUserRecord(fresh.user)
     await ensureUsername(user.value)
+    initialized.value = true
+  }
+
+  const consumeAccessToken = async (token: string) => {
+    setAccessToken(token)
+    initialized.value = false
+    await refresh()
+  }
+
+  const loginWithGitHub = async (redirectTo?: string) => {
+    const result = await api.auth.startGitHub(redirectTo)
+    if (typeof window !== 'undefined') {
+      window.location.assign(result.url)
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await api.auth.logout()
+    }
+    catch {
+      // noop
+    }
+    clearAccessToken()
+    user.value = null
   }
 
   const getAvatarUrl = () => {
-    if (!user.value?.avatar) { return null }
-    return pb.files.getURL(user.value, user.value.avatar)
+    return user.value?.avatar_url || null
   }
 
   return {
     user,
+    initialized,
     isLoggedIn,
     isActive,
     isAdmin,
     displayName,
-    login,
-    register,
+    initialize,
+    consumeAccessToken,
     loginWithGitHub,
     logout,
     refresh,

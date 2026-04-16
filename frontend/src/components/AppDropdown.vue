@@ -24,14 +24,6 @@ const close = () => {
   isOpen.value = false
 }
 
-const toggle = async () => {
-  isOpen.value = !isOpen.value
-  if (isOpen.value) {
-    await nextTick()
-    updatePosition()
-  }
-}
-
 const updatePosition = () => {
   const trigger = triggerRef.value
   const panel = panelRef.value
@@ -44,7 +36,8 @@ const updatePosition = () => {
   let left = triggerRect.left
   if (props.align === 'center') {
     left = triggerRect.left + (triggerRect.width / 2) - (panelRect.width / 2)
-  } else if (props.align === 'end') {
+  }
+  else if (props.align === 'end') {
     left = triggerRect.right - panelRect.width
   }
 
@@ -63,6 +56,14 @@ const updatePosition = () => {
     left: `${Math.round(left)}px`,
     top: `${Math.round(top)}px`,
     minWidth: `${Math.max(props.minWidth, Math.round(triggerRect.width))}px`,
+  }
+}
+
+const toggle = async () => {
+  isOpen.value = !isOpen.value
+  if (isOpen.value) {
+    await nextTick()
+    updatePosition()
   }
 }
 

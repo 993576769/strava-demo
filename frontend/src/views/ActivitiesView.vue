@@ -41,7 +41,7 @@ const stravaNotice = computed(() => {
       return {
         tone: 'warning' as const,
         title: 'Strava 授权回调失败',
-        description: '请检查 PocketBase 环境变量、Strava 应用回调地址和服务端日志。',
+        description: '请检查 API 服务环境变量、Strava 应用回调地址和服务端日志。',
       }
     default:
       return null
@@ -281,7 +281,7 @@ onMounted(async () => {
           <article
             v-for="activity in activitiesStore.activities"
             :key="activity.id"
-            class="cursor-pointer rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:border-primary/35 hover:shadow-[0_22px_48px_rgba(79,70,229,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:p-6"
+            class="cursor-pointer rounded-[28px] border border-[var(--color-border)]/60 bg-[var(--color-surface-card)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:border-primary/35 hover:shadow-[0_22px_48px_rgba(79,70,229,0.12)] focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none sm:p-6"
             role="button"
             tabindex="0"
             @click="openActivity(activity.id)"

@@ -1,4 +1,4 @@
-import type { ArtPromptTemplate } from '@/types/pocketbase'
+import type { ArtPromptTemplate } from '@/types/api'
 
 export interface ArtPromptTemplateOption {
   id: string
