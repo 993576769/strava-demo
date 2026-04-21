@@ -37,6 +37,34 @@ const toSummaryPolylinePayload = (value: unknown): Record<string, unknown> | nul
   }
 }
 
+const toBaseActivityDto = (row: ActivityRow) => ({
+  id: row.id,
+  user: row.userId,
+  connection: row.connectionId,
+  source: row.source,
+  source_activity_id: row.sourceActivityId,
+  name: row.name,
+  sport_type: row.sportType,
+  start_date: toIso(row.startDate),
+  timezone: row.timezone,
+  distance_meters: toNumber(row.distanceMeters),
+  moving_time_seconds: row.movingTimeSeconds,
+  elapsed_time_seconds: row.elapsedTimeSeconds,
+  elevation_gain_meters: toNumber(row.elevationGainMeters),
+  average_speed: toNumber(row.averageSpeed),
+  start_latlng: row.startLatlng,
+  end_latlng: row.endLatlng,
+  visibility: row.visibility,
+  has_polyline: row.hasPolyline,
+  has_streams: row.hasStreams,
+  is_generatable: row.isGeneratable,
+  generatable_reason: row.generatableReason,
+  sync_status: row.syncStatus,
+  synced_at: toIso(row.syncedAt),
+  created: toIso(row.createdAt),
+  updated: toIso(row.updatedAt),
+})
+
 export const toUserDto = (row: UserRow) => ({
   id: row.id,
   email: row.email,
@@ -64,34 +92,14 @@ export const toStravaConnectionDto = (row: StravaConnectionRow) => ({
   updated: toIso(row.updatedAt),
 })
 
+export const toActivityListDto = (row: ActivityRow) => ({
+  ...toBaseActivityDto(row),
+})
+
 export const toActivityDto = (row: ActivityRow) => ({
-  id: row.id,
-  user: row.userId,
-  connection: row.connectionId,
-  source: row.source,
-  source_activity_id: row.sourceActivityId,
-  name: row.name,
-  sport_type: row.sportType,
-  start_date: toIso(row.startDate),
-  timezone: row.timezone,
-  distance_meters: toNumber(row.distanceMeters),
-  moving_time_seconds: row.movingTimeSeconds,
-  elapsed_time_seconds: row.elapsedTimeSeconds,
-  elevation_gain_meters: toNumber(row.elevationGainMeters),
-  average_speed: toNumber(row.averageSpeed),
-  start_latlng: row.startLatlng,
-  end_latlng: row.endLatlng,
-  visibility: row.visibility,
-  has_polyline: row.hasPolyline,
-  has_streams: row.hasStreams,
-  is_generatable: row.isGeneratable,
-  generatable_reason: row.generatableReason,
-  sync_status: row.syncStatus,
-  synced_at: toIso(row.syncedAt),
+  ...toBaseActivityDto(row),
   raw_summary_json: toSummaryPolylinePayload(row.rawSummaryJson),
   raw_detail_json: toSummaryPolylinePayload(row.rawDetailJson),
-  created: toIso(row.createdAt),
-  updated: toIso(row.updatedAt),
 })
 
 export const toActivityStreamDto = (row: ActivityStreamRow) => ({

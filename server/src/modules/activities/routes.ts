@@ -7,7 +7,7 @@ import { activities, activityStreams } from '../../db/schema'
 import { notFound } from '../../lib/errors'
 import { parseParams, parseQuery } from '../../lib/http'
 import { requireAuth } from '../auth/middleware'
-import { toActivityDto, toActivityStreamDto } from '../shared/dto'
+import { toActivityDto, toActivityListDto, toActivityStreamDto } from '../shared/dto'
 
 const router = new Hono<{ Variables: AuthVariables }>()
 
@@ -29,7 +29,7 @@ router.get('/', requireAuth, async (c) => {
     })
 
     return c.json({
-      items: items.map(toActivityDto),
+      items: items.map(toActivityListDto),
       page: 1,
       perPage: items.length || requestedIds.length,
       totalItems: items.length,
@@ -51,7 +51,7 @@ router.get('/', requireAuth, async (c) => {
 
   const totalItems = countRows[0]?.count || 0
   return c.json({
-    items: items.map(toActivityDto),
+    items: items.map(toActivityListDto),
     page: query.page,
     perPage: query.perPage,
     totalItems,

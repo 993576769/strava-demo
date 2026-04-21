@@ -58,8 +58,8 @@ export interface Activity {
   generatable_reason: string
   sync_status: ActivitySyncStatus
   synced_at: string
-  raw_summary_json: Record<string, unknown> | null
-  raw_detail_json: Record<string, unknown> | null
+  raw_summary_json?: Record<string, unknown> | null
+  raw_detail_json?: Record<string, unknown> | null
   created: string
   updated: string
 }
