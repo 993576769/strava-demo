@@ -41,7 +41,7 @@ export const useActivitiesStore = defineStore('activities', () => {
   })
 
   const currentActivity = computed(() => currentActivityId.value ? (detailQuery.data.value ?? null) : null)
-  const detailLoading = computed(() => currentActivityId.value.length > 0 && detailQuery.isLoading.value)
+  const detailLoading = computed(() => currentActivityId.value.length > 0 && detailQuery.isPending.value)
   const hasMore = computed(() => activities.value.length < totalItems.value)
   const error = computed(() => {
     if (detailQuery.error.value) { return '读取活动详情失败' }

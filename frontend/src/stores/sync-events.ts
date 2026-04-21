@@ -16,7 +16,7 @@ export const useSyncEventsStore = defineStore('syncEvents', () => {
   })
 
   const events = computed(() => eventsQuery.data.value ?? [])
-  const loading = computed(() => eventsQuery.isLoading.value)
+  const loading = computed(() => eventsQuery.isPending.value)
   const error = computed(() => eventsQuery.error.value ? '读取同步事件失败' : null)
 
   const fetchLatestEvents = async () => {

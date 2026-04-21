@@ -20,7 +20,7 @@ export const useActivityStreamsStore = defineStore('activityStreams', () => {
   })
 
   const currentStream = computed(() => currentActivityId.value ? (streamQuery.data.value ?? null) : null)
-  const loading = computed(() => currentActivityId.value.length > 0 && streamQuery.isLoading.value)
+  const loading = computed(() => currentActivityId.value.length > 0 && streamQuery.isPending.value)
   const error = computed(() => streamQuery.error.value ? '读取活动轨迹失败' : null)
 
   const fetchStreamForActivity = async (activityId: string) => {

@@ -97,7 +97,7 @@ export const useArtJobsStore = defineStore('artJobs', () => {
   })
 
   const jobs = computed(() => activityId.value ? (jobsQuery.data.value ?? []) : [])
-  const loading = computed(() => activityId.value.length > 0 && jobsQuery.isLoading.value)
+  const loading = computed(() => activityId.value.length > 0 && jobsQuery.isPending.value)
   const creating = computed(() => createJobMutation.isLoading.value)
   const uploadingRouteBase = computed(() => uploadRouteBaseMutation.isLoading.value)
   const error = computed(() => {

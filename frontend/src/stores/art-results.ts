@@ -111,8 +111,8 @@ export const useArtResultsStore = defineStore('artResults', () => {
     if (!detailResultId.value) { return null }
     return detailQuery.data.value ?? null
   })
-  const loading = computed(() => listQuery.isLoading.value && results.value.length === 0)
-  const detailLoading = computed(() => detailResultId.value.length > 0 && detailQuery.isLoading.value)
+  const loading = computed(() => listQuery.isPending.value && results.value.length === 0)
+  const detailLoading = computed(() => detailResultId.value.length > 0 && detailQuery.isPending.value)
   const queueing = computed(() => queueMutation.isLoading.value)
   const loadingMore = computed(() => listQuery.asyncStatus.value === 'loading' && results.value.length > 0)
   const currentPage = computed<number>(() => latestPageParam.value)

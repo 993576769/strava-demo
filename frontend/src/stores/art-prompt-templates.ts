@@ -85,7 +85,7 @@ export const useArtPromptTemplatesStore = defineStore('artPromptTemplates', () =
 
   const templates = computed(() => templatesQuery.data.value ?? [])
   const options = computed(() => templates.value.map(toArtPromptTemplateOption))
-  const loading = computed(() => templatesQuery.isLoading.value)
+  const loading = computed(() => templatesQuery.isPending.value)
   const uploadingReferenceImage = computed(() => uploadReferenceImageMutation.isLoading.value)
   const error = computed(() => {
     if (uploadReferenceImageMutation.error.value) { return uploadReferenceImageMutation.error.value.message || '上传参考图失败' }

@@ -102,7 +102,7 @@ export const useStravaStore = defineStore('strava', () => {
   })
 
   const connection = computed(() => (auth.isLoggedIn ? (connectionQuery.data.value ?? null) : null))
-  const loading = computed(() => auth.isLoggedIn && connectionQuery.isLoading.value)
+  const loading = computed(() => auth.isLoggedIn && connectionQuery.isPending.value)
   const syncing = computed(() => syncMutation.isLoading.value)
   const disconnecting = computed(() => disconnectMutation.isLoading.value)
   const error = computed(() => {
