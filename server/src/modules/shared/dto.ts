@@ -20,6 +20,22 @@ type SyncEventRow = typeof syncEvents.$inferSelect
 
 const toIso = (value: Date | null | undefined) => value ? value.toISOString() : ''
 const toNumber = (value: string | number | null | undefined) => value === null || value === undefined ? 0 : Number(value)
+const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
+const toSummaryPolylinePayload = (value: unknown): Record<string, unknown> | null => {
+  if (!isRecord(value)) { return null }
+
+  const rawMap = value.map
+  if (!isRecord(rawMap)) { return null }
+
+  const summaryPolyline = rawMap.summary_polyline
+  if (typeof summaryPolyline !== 'string' || summaryPolyline.length === 0) { return null }
+
+  return {
+    map: {
+      summary_polyline: summaryPolyline,
+    },
+  }
+}
 
 export const toUserDto = (row: UserRow) => ({
   id: row.id,
@@ -72,8 +88,8 @@ export const toActivityDto = (row: ActivityRow) => ({
   generatable_reason: row.generatableReason,
   sync_status: row.syncStatus,
   synced_at: toIso(row.syncedAt),
-  raw_summary_json: row.rawSummaryJson,
-  raw_detail_json: row.rawDetailJson,
+  raw_summary_json: toSummaryPolylinePayload(row.rawSummaryJson),
+  raw_detail_json: toSummaryPolylinePayload(row.rawDetailJson),
   created: toIso(row.createdAt),
   updated: toIso(row.updatedAt),
 })
