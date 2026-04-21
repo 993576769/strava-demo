@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth'
 
 interface ActivityRouteMapExpose {
   exportPngDataUrl: () => Promise<string | null>
+  exportJpgDataUrl: () => Promise<string | null>
 }
 
 const route = useRoute()
@@ -208,7 +209,7 @@ const createArtJob = async () => {
     return
   }
 
-  const routeBaseDataUrl = await routeMapRef.value?.exportPngDataUrl()
+  const routeBaseDataUrl = await routeMapRef.value?.exportJpgDataUrl()
   if (!routeBaseDataUrl && !hasRouteBaseImageUrl(job)) {
     createFeedback.value = '轨迹底稿还没准备好，请等待地图预览加载完成后再试。'
     await refreshQueueState()

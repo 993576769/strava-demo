@@ -23,6 +23,12 @@ interface SegmentFeatureCollection {
   }>
 }
 
+interface ExportImageOptions {
+  format?: 'png' | 'jpeg'
+  scale?: number
+  quality?: number
+}
+
 const props = defineProps<{
   encodedPolyline?: string
   points?: unknown | null
@@ -40,6 +46,8 @@ const ROUTE_SOURCE_ID = 'activity-route'
 const ROUTE_LAYER_ID = 'activity-route-line'
 const ROUTE_COLOR = '#ea580c'
 const EXPORT_SCALE = 3
+const UPLOAD_EXPORT_SCALE = 2
+const JPEG_EXPORT_QUALITY = 0.84
 const MAPTILER_KEY = (import.meta.env.VITE_MAPTILER_KEY || '').trim()
 const MAPTILER_STYLE_URL = MAPTILER_KEY
   ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(MAPTILER_KEY)}`
@@ -78,7 +86,8 @@ const createMapStyle = () => ({
   ],
 })
 
-const exportMimeType = 'image/png'
+const PNG_EXPORT_MIME_TYPE = 'image/png'
+const JPEG_EXPORT_MIME_TYPE = 'image/jpeg'
 const exportFileExtension = 'png'
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -452,16 +461,17 @@ const renderRoute = async () => {
   map.setZoom(Math.max(map.getZoom() - 0.12, 0))
 }
 
-const buildImageDataUrl = async () => {
+const buildImageDataUrl = async (options: ExportImageOptions = {}) => {
   if (!canRenderRoute.value) { return null }
 
   await renderRoute()
   if (!map) { return null }
 
+  const format = options.format ?? 'png'
   const canvas = map.getCanvas()
   const squareSide = Math.max(canvas.width, canvas.height)
   const hdCanvas = document.createElement('canvas')
-  const scale = EXPORT_SCALE
+  const scale = options.scale ?? EXPORT_SCALE
   hdCanvas.width = squareSide * scale
   hdCanvas.height = squareSide * scale
   const context = hdCanvas.getContext('2d')
@@ -478,7 +488,10 @@ const buildImageDataUrl = async () => {
     Math.round((squareSide - canvas.width) / 2),
     Math.round((squareSide - canvas.height) / 2),
   )
-  return hdCanvas.toDataURL(exportMimeType)
+
+  const mimeType = format === 'jpeg' ? JPEG_EXPORT_MIME_TYPE : PNG_EXPORT_MIME_TYPE
+  const quality = format === 'jpeg' ? (options.quality ?? JPEG_EXPORT_QUALITY) : undefined
+  return hdCanvas.toDataURL(mimeType, quality)
 }
 
 const exportMapImage = async () => {
@@ -519,8 +532,15 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
-  exportPngDataUrl: buildImageDataUrl,
-  exportJpgDataUrl: buildImageDataUrl,
+  exportPngDataUrl: () => buildImageDataUrl({
+    format: 'png',
+    scale: EXPORT_SCALE,
+  }),
+  exportJpgDataUrl: () => buildImageDataUrl({
+    format: 'jpeg',
+    scale: UPLOAD_EXPORT_SCALE,
+    quality: JPEG_EXPORT_QUALITY,
+  }),
 })
 </script>
 
