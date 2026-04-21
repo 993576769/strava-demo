@@ -1,4 +1,4 @@
-import type { Theme } from '@/types/pocketbase'
+import type { Theme } from '@/types/api'
 import { useColorMode } from '@vueuse/core'
 import { defineStore } from 'pinia'
 

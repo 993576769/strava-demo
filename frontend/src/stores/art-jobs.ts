@@ -1,19 +1,9 @@
-import type { ArtJob, ArtResult } from '@/types/pocketbase'
+import type { ArtJob, ArtResult } from '@/types/api'
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { artJobsCollection, pb } from '@/lib/pocketbase'
-import { isArtJob, isArtResult } from '@/types/pocketbase'
-
-interface CreateArtJobResponse {
-  job?: unknown
-  reused?: boolean
-}
-
-interface UploadRouteBaseResponse {
-  job?: unknown
-  routeBaseImageUrl?: string
-}
+import { api } from '@/lib/api'
+import { isArtJob, isArtResult } from '@/types/api'
 
 interface CreateJobParams {
   activityId: string
@@ -52,10 +42,7 @@ export const useArtJobsStore = defineStore('artJobs', () => {
     key: () => ['art-jobs', 'activity', activityId.value || '__idle__', jobLimit.value],
     enabled: computed(() => activityId.value.length > 0),
     query: async () => {
-      const result = await artJobsCollection().getList(1, jobLimit.value, {
-        filter: `activity = "${activityId.value}"`,
-        sort: '-queued_at',
-      })
+      const result = await api.art.listJobs(activityId.value, jobLimit.value)
       return result.items
         .map(toArtJobWithResult)
         .filter(item => item !== null)
@@ -65,18 +52,12 @@ export const useArtJobsStore = defineStore('artJobs', () => {
 
   const createJobMutation = useMutation<ArtJobWithResult, CreateJobParams, Error>({
     mutation: async (params) => {
-      const response = await pb.send<CreateArtJobResponse>('/api/art/jobs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: {
-          activityId: params.activityId,
-          templateKey: params.templateKey,
-          renderOptions: {
-            includeTitle: params.includeTitle,
-            includeStats: true,
-          },
+      const response = await api.art.createJob({
+        activityId: params.activityId,
+        templateKey: params.templateKey,
+        renderOptions: {
+          includeTitle: params.includeTitle,
+          includeStats: true,
         },
       })
 
@@ -96,15 +77,9 @@ export const useArtJobsStore = defineStore('artJobs', () => {
 
   const uploadRouteBaseMutation = useMutation<{ job: ArtJobWithResult | null, routeBaseImageUrl: string }, UploadRouteBaseParams, Error>({
     mutation: async (params) => {
-      const response = await pb.send<UploadRouteBaseResponse>(`/api/art/jobs/${params.jobId}/route-base`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: {
-          dataUrl: params.dataUrl,
-          fileName: params.fileName,
-        },
+      const response = await api.art.uploadRouteBase(params.jobId, {
+        dataUrl: params.dataUrl,
+        fileName: params.fileName,
       })
 
       return {

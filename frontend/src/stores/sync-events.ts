@@ -1,17 +1,15 @@
-import type { SyncEvent } from '@/types/pocketbase'
+import type { SyncEvent } from '@/types/api'
 import { useQuery } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
-import { syncEventsCollection } from '@/lib/pocketbase'
-import { isSyncEvent } from '@/types/pocketbase'
+import { api } from '@/lib/api'
+import { isSyncEvent } from '@/types/api'
 
 export const useSyncEventsStore = defineStore('syncEvents', () => {
   const eventsQuery = useQuery<SyncEvent[], Error>({
     key: ['sync-events', 'latest'],
     query: async () => {
-      const result = await syncEventsCollection().getList(1, 8, {
-        sort: '-occurred_at',
-      })
+      const result = await api.syncEvents.list(8)
       return result.items.filter(isSyncEvent)
     },
     refetchOnWindowFocus: false,

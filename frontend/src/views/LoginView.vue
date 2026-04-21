@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { LocationQueryValue } from 'vue-router'
 import { Github, Loader2, Route, ShieldCheck } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -43,16 +43,40 @@ const handleGitHubLogin = async () => {
   loading.value = true
 
   try {
-    await auth.loginWithGitHub()
-    redirectIfAuthenticated()
+    await auth.loginWithGitHub(getRedirectTarget(route.query.redirect) || '/')
   }
   catch (value: unknown) {
-    error.value = getErrorMessage(value, 'GitHub 登录失败，请确认 PocketBase 已启用 GitHub OAuth Provider。')
+    error.value = getErrorMessage(value, 'GitHub 登录失败，请确认服务端已配置 GitHub OAuth。')
   }
   finally {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  const accessToken = typeof route.query.access_token === 'string' ? route.query.access_token : ''
+  const callbackError = typeof route.query.error === 'string' ? route.query.error : ''
+
+  if (callbackError) {
+    error.value = 'GitHub 登录回调失败，请检查服务端 OAuth 配置。'
+  }
+
+  if (!accessToken) {
+    return
+  }
+
+  loading.value = true
+  try {
+    await auth.consumeAccessToken(accessToken)
+    redirectIfAuthenticated()
+  }
+  catch (value) {
+    error.value = getErrorMessage(value, '登录状态恢复失败，请重试。')
+  }
+  finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -126,7 +150,7 @@ const handleGitHubLogin = async () => {
       </div>
 
       <div class="mt-3 text-center text-xs text-[var(--color-text-muted)]/80">
-        如果登录失败，请先在 PocketBase 管理后台为 `users` 启用 GitHub OAuth Provider。
+        如果登录失败，请确认 `GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET` 和回调地址已在后端配置完成。
       </div>
     </div>
   </div>

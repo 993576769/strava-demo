@@ -1,10 +1,10 @@
-import type { StravaConnection, StravaConnectionStatus } from '@/types/pocketbase'
+import type { StravaConnection, StravaConnectionStatus } from '@/types/api'
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { pb } from '@/lib/pocketbase'
+import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
-import { isStravaConnection } from '@/types/pocketbase'
+import { isStravaConnection } from '@/types/api'
 
 export type StravaUiStatus
   = | 'not_connected'
@@ -23,6 +23,11 @@ interface StravaSyncStats {
   partial: number
   generatable: number
   failed: number
+}
+
+interface StravaSyncResponse {
+  connection?: unknown
+  stats?: StravaSyncStats
 }
 
 const statusLabelMap: Record<StravaUiStatus, string> = {
@@ -53,9 +58,7 @@ export const useStravaStore = defineStore('strava', () => {
     key: () => ['strava', 'connection', auth.user?.id ?? '__guest__'],
     enabled: computed(() => auth.isLoggedIn),
     query: async () => {
-      const result = await pb.send<{ connection?: unknown }>('/api/integrations/strava/status', {
-        method: 'GET',
-      })
+      const result = await api.strava.getStatus()
 
       return result.connection && isStravaConnection(result.connection) ? result.connection : null
     },
@@ -65,14 +68,9 @@ export const useStravaStore = defineStore('strava', () => {
   const syncMutation = useMutation<{ connection: StravaConnection | null, stats: StravaSyncStats | null }, void, Error>({
     mutation: async () => {
       const endpoint = syncMode.value === 'history'
-        ? '/api/integrations/strava/sync-history'
-        : '/api/integrations/strava/sync'
-      const result = await pb.send<{
-        connection?: unknown
-        stats?: StravaSyncStats
-      }>(endpoint, {
-        method: 'POST',
-      })
+        ? 'history'
+        : 'incremental'
+      const result = await api.strava.sync(endpoint) as unknown as StravaSyncResponse
 
       return {
         connection: result.connection && isStravaConnection(result.connection) ? result.connection : null,
@@ -94,9 +92,7 @@ export const useStravaStore = defineStore('strava', () => {
 
   const disconnectMutation = useMutation<boolean, void, Error>({
     mutation: async () => {
-      await pb.send('/api/integrations/strava/disconnect', {
-        method: 'POST',
-      })
+      await api.strava.disconnect()
       return true
     },
     onSuccess: () => {
@@ -147,9 +143,7 @@ export const useStravaStore = defineStore('strava', () => {
     connecting.value = true
 
     try {
-      const result = await pb.send<{ url?: string }>('/api/integrations/strava/connect', {
-        method: 'POST',
-      })
+      const result = await api.strava.connect()
 
       if (!result?.url) { throw new Error('Missing Strava authorize url') }
 

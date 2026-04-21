@@ -1,10 +1,10 @@
-import type { ArtPromptTemplate } from '@/types/pocketbase'
+import type { ArtPromptTemplate } from '@/types/api'
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { api } from '@/lib/api'
 import { toArtPromptTemplateOption } from '@/lib/art-prompt-templates'
-import { artPromptTemplatesCollection, pb } from '@/lib/pocketbase'
-import { isArtPromptTemplate } from '@/types/pocketbase'
+import { isArtPromptTemplate } from '@/types/api'
 
 type SaveTemplatePayload = Partial<Pick<ArtPromptTemplate, 'prompt_template' | 'reference_image_url' | 'notes' | 'is_active'>>
 
@@ -15,16 +15,9 @@ interface UploadReferenceImagePayload {
 }
 
 const listTemplates = async (includeInactive: boolean) => {
-  const filter = includeInactive
-    ? 'provider = "doubao-seedream"'
-    : 'provider = "doubao-seedream" && is_active = true'
+  const result = await api.art.listPromptTemplates(includeInactive)
 
-  const result = await artPromptTemplatesCollection().getFullList({
-    filter,
-    sort: 'template_key',
-  })
-
-  return result.filter(isArtPromptTemplate)
+  return result.items.filter(isArtPromptTemplate).filter(template => template.provider === 'doubao-seedream')
 }
 
 export const useArtPromptTemplatesStore = defineStore('artPromptTemplates', () => {
@@ -39,7 +32,8 @@ export const useArtPromptTemplatesStore = defineStore('artPromptTemplates', () =
 
   const saveTemplateMutation = useMutation<ArtPromptTemplate, { id: string, payload: SaveTemplatePayload }, Error>({
     mutation: async ({ id, payload }) => {
-      const updated = await artPromptTemplatesCollection().update(id, payload)
+      const response = await api.art.updatePromptTemplate(id, payload)
+      const updated = response.template
       if (!isArtPromptTemplate(updated)) { throw new Error('Invalid template response') }
 
       return updated
@@ -61,15 +55,9 @@ export const useArtPromptTemplatesStore = defineStore('artPromptTemplates', () =
 
   const uploadReferenceImageMutation = useMutation<{ template: ArtPromptTemplate, referenceImageUrl: string }, UploadReferenceImagePayload, Error>({
     mutation: async ({ templateId, dataUrl, fileName }) => {
-      const response = await pb.send<{ template?: unknown, referenceImageUrl?: string }>(`/api/admin/art-prompt-templates/${templateId}/reference-image`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: {
-          dataUrl,
-          fileName,
-        },
+      const response = await api.art.uploadPromptReferenceImage(templateId, {
+        dataUrl,
+        fileName,
       })
 
       const template = isArtPromptTemplate(response.template) ? response.template : null

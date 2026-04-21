@@ -82,13 +82,14 @@ const resolveGuestRedirect = (to: RouteLocationNormalizedGeneric): RouteLocation
 // 路由守卫
 router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
+  await auth.initialize()
 
   if (auth.isLoggedIn) {
     try {
       await auth.refresh()
     }
     catch {
-      auth.logout()
+      await auth.logout()
     }
   }
 

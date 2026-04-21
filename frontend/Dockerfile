@@ -1,18 +1,15 @@
 # build stage
-FROM node:20-alpine AS builder
+FROM oven/bun:1.3.12-alpine AS builder
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+COPY package.json bun.lock ./
+COPY frontend/package.json ./frontend/package.json
 
-# Copy all workspace files
-COPY . .
+RUN bun install --frozen-lockfile
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+COPY frontend ./frontend
 
-# Build frontend
-RUN cd frontend && pnpm build
+RUN bun run --cwd ./frontend build
 
 # production stage
 FROM nginx:alpine

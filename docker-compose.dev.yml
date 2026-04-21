@@ -1,32 +1,27 @@
 services:
-  pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
-    container_name: vue-pocketbase-template-pocketbase
+  postgres:
+    image: postgres:17-alpine
+    container_name: strava-art-lab-postgres
     restart: unless-stopped
     ports:
-      - "8090:8090"
-    volumes:
-      - pocketbase_data:/pb_data
-      - ./pocketbase/pb_migrations:/pb_migrations
+      - "5432:5432"
     environment:
-      TZ: Asia/Shanghai
-      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-}
-      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-strava_art_lab}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://localhost:8090/api/health || exit 1
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-strava_art_lab}"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   frontend:
     build:
-      context: ./frontend
-    container_name: vue-pocketbase-template-frontend
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    container_name: strava-art-lab-frontend
     restart: unless-stopped
     ports:
       - "8080:80"
     depends_on:
-      - pocketbase
-
-volumes:
-  pocketbase_data:
+      - postgres

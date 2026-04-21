@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Activity, ArtJob } from '@/types/pocketbase'
+import type { Activity, ArtJob } from '@/types/api'
 import { CheckCircle2, History, RefreshCw, Route, Sparkles } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { api } from '@/lib/api'
 import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
-import { activitiesCollection, artJobsCollection } from '@/lib/pocketbase'
 import { cn } from '@/lib/utils'
-import { isActivity, isArtJob, isArtResult } from '@/types/pocketbase'
+import { isActivity, isArtJob, isArtResult } from '@/types/api'
 
 type HistoryJob = ArtJob & {
   activityRecord?: Activity | null
@@ -37,13 +37,8 @@ const fetchActivitiesByIds = async (activityIds: string[]) => {
     return new Map<string, Activity>()
   }
 
-  const filter = activityIds
-    .map(id => `id = "${id}"`)
-    .join(' || ')
-
-  const records = await activitiesCollection().getFullList({
-    filter,
-  })
+  const result = await api.activities.list(1, Math.max(activityIds.length, PAGE_SIZE), activityIds)
+  const records = result.items.filter(activity => activityIds.includes(activity.id))
 
   return records
     .filter(isActivity)
@@ -127,15 +122,14 @@ const jobStatusClass = (status: string) => {
 const fetchPage = async (targetPage: number, append = false) => {
   if (append) {
     loadingMore.value = true
-  } else {
+  }
+  else {
     loading.value = true
   }
   error.value = ''
 
   try {
-    const response = await artJobsCollection().getList(targetPage, PAGE_SIZE, {
-      sort: '-queued_at',
-    })
+    const response = await api.art.listHistoryJobs(targetPage, PAGE_SIZE)
     const baseItems = response.items
       .map(toHistoryJob)
       .filter((item): item is HistoryJob => item !== null)
@@ -151,10 +145,12 @@ const fetchPage = async (targetPage: number, append = false) => {
     page.value = response.page
     totalItems.value = response.totalItems
     totalPages.value = response.totalPages
-  } catch (value) {
+  }
+  catch (value) {
     console.error(value)
     error.value = append ? '读取更多生成记录失败' : '读取生成记录失败'
-  } finally {
+  }
+  finally {
     loading.value = false
     loadingMore.value = false
   }
@@ -283,7 +279,7 @@ onMounted(() => {
                 {{ historyCardHint(job) }}
               </p>
 
-              <p v-if="job.error_message" class="mt-4 min-w-0 max-w-full overflow-hidden whitespace-pre-wrap break-all text-sm text-red-500">
+              <p v-if="job.error_message" class="mt-4 max-w-full min-w-0 overflow-hidden text-sm break-all whitespace-pre-wrap text-red-500">
                 {{ job.error_message }}
               </p>
             </div>

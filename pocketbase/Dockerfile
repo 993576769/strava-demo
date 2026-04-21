@@ -1,8 +1,0 @@
-FROM ghcr.io/muchobien/pocketbase:latest
-
-COPY pocketbase/pb_hooks /pb_hooks
-COPY pocketbase/pb_migrations /pb_migrations
-
-EXPOSE 8090
-
-CMD ["serve", "--http=0.0.0.0:8090", "--dir=/pb_data", "--hooksDir=/pb_hooks"]

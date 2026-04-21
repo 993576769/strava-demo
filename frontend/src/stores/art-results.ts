@@ -1,9 +1,9 @@
-import type { ArtResult } from '@/types/pocketbase'
+import type { ArtResult } from '@/types/api'
 import { useInfiniteQuery, useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { artResultsCollection, pb } from '@/lib/pocketbase'
-import { isArtResult } from '@/types/pocketbase'
+import { api } from '@/lib/api'
+import { isArtResult } from '@/types/api'
 
 interface RenderMockJobResponse {
   job?: unknown
@@ -29,9 +29,7 @@ interface QueueJobResult {
 }
 
 const fetchResultsPage = async (activityId: string, page: number, perPage: number) => {
-  const response = await artResultsCollection().getList(page, perPage, {
-    filter: `activity = "${activityId}"`,
-  })
+  const response = await api.art.listResults(activityId, page, perPage)
 
   return {
     items: response.items
@@ -66,7 +64,8 @@ export const useArtResultsStore = defineStore('artResults', () => {
     key: () => ['art-results', 'detail', detailResultId.value || '__idle__'],
     enabled: computed(() => detailResultId.value.length > 0),
     query: async () => {
-      const record = await artResultsCollection().getOne(detailResultId.value)
+      const response = await api.art.getResult(detailResultId.value)
+      const record = response.result
       return isArtResult(record) ? record : null
     },
     refetchOnWindowFocus: false,
@@ -74,9 +73,7 @@ export const useArtResultsStore = defineStore('artResults', () => {
 
   const queueMutation = useMutation<QueueJobResult, string, Error>({
     mutation: async (jobId) => {
-      const response = await pb.send<RenderMockJobResponse>(`/api/art/jobs/${jobId}/render`, {
-        method: 'POST',
-      })
+      const response = await api.art.queueJob(jobId) as RenderMockJobResponse
 
       return {
         result: isArtResult(response.result) ? response.result : null,

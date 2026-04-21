@@ -14,8 +14,8 @@ const webhookEvents = computed(() => syncEventsStore.events.filter(event => even
 const connectionEvents = computed(() => syncEventsStore.events.filter(event => event.category === 'connection'))
 const syncEvents = computed(() => syncEventsStore.events.filter(event => event.category === 'sync'))
 const callbackBase = computed(() => {
-  if (import.meta.env.VITE_PB_URL) {
-    return import.meta.env.VITE_PB_URL.replace(/\/$/, '')
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '')
   }
   if (typeof window !== 'undefined') {
     return window.location.origin
@@ -29,7 +29,7 @@ const verifyChecklistText = computed(() =>
     '',
     `Webhook Callback URL: ${webhookVerifyUrl.value}`,
     '',
-    '1. 确认 Strava 应用中的 callback domain 与当前 PocketBase 域名一致。',
+    '1. 确认 Strava 应用中的 callback domain 与当前 API 服务域名一致。',
     '2. 确认 `.env` 中的 `STRAVA_WEBHOOK_VERIFY_TOKEN` 与订阅时填写的 `verify_token` 一致。',
     '3. 发送一次测试事件后，检查这个页面里的“最近 webhook 事件”是否新增记录。',
   ].join('\n'),
@@ -242,7 +242,7 @@ onUnmounted(() => {
                       需要确认
                     </p>
                     <ul class="mt-2 space-y-2 text-sm text-[var(--color-text-muted)]">
-                      <li>Strava 应用中的 callback domain 与当前 PocketBase 域名一致。</li>
+                      <li>Strava 应用中的 callback domain 与当前 API 服务域名一致。</li>
                       <li>`.env` 中的 `STRAVA_WEBHOOK_VERIFY_TOKEN` 与订阅时填写的 `verify_token` 一致。</li>
                       <li>收到 webhook 后，下面的“最近 webhook 事件”列表会新增一条记录。</li>
                     </ul>

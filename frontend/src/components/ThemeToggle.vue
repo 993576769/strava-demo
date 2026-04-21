@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Theme } from '@/types/pocketbase'
+import type { Theme } from '@/types/api'
 import { Monitor, Moon, Sun } from 'lucide-vue-next'
 import { computed } from 'vue'
 import AppDropdown from '@/components/AppDropdown.vue'

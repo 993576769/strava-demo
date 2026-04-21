@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ArtResult } from '@/types/pocketbase'
+import type { ArtResult } from '@/types/api'
 import { ExternalLink, Loader2 } from 'lucide-vue-next'
 import { formatArtPromptTemplateLabel } from '@/lib/art-prompt-templates'
 

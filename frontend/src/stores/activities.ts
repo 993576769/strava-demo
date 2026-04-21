@@ -1,10 +1,10 @@
-import type { Activity } from '@/types/pocketbase'
+import type { Activity } from '@/types/api'
 import { useQuery } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { activitiesCollection } from '@/lib/pocketbase'
+import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
-import { isActivity } from '@/types/pocketbase'
+import { isActivity } from '@/types/api'
 
 const ACTIVITIES_PER_PAGE = 12
 
@@ -19,9 +19,7 @@ export const useActivitiesStore = defineStore('activities', () => {
   const listError = ref<string | null>(null)
 
   const fetchActivitiesPage = async (page: number) => {
-    const result = await activitiesCollection().getList(page, ACTIVITIES_PER_PAGE, {
-      sort: '-start_date',
-    })
+    const result = await api.activities.list(page, ACTIVITIES_PER_PAGE)
 
     return {
       items: result.items.filter(isActivity),
@@ -35,7 +33,8 @@ export const useActivitiesStore = defineStore('activities', () => {
     key: () => ['activities', 'detail', currentActivityId.value || '__idle__'],
     enabled: computed(() => currentActivityId.value.length > 0),
     query: async () => {
-      const record = await activitiesCollection().getOne(currentActivityId.value)
+      const response = await api.activities.getOne(currentActivityId.value)
+      const record = response.activity
       return isActivity(record) ? record : null
     },
     refetchOnWindowFocus: false,
