@@ -2,6 +2,9 @@
 FROM oven/bun:1.3.12-alpine AS builder
 WORKDIR /app
 
+ARG VITE_TIANDITU_KEY
+ENV VITE_TIANDITU_KEY=${VITE_TIANDITU_KEY}
+
 COPY package.json bun.lock ./
 COPY frontend/package.json ./frontend/package.json
 

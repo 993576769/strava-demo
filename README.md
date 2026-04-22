@@ -25,6 +25,12 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env
 ```
 
+说明：
+
+- `bun run dev:web` / `bun run dev:all` 会读取 `frontend/.env`
+- `docker compose -f docker-compose.dev.yml build frontend` 会读取项目根目录 `.env` 里的 `VITE_TIANDITU_KEY`，并在镜像构建时注入
+- GitHub Actions 构建生产前端镜像时会读取仓库 Secret `VITE_TIANDITU_KEY`
+
 3. 启动 Postgres
 
 ```bash

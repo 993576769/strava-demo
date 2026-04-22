@@ -2,6 +2,7 @@
 import type { GeoJSONSource, LngLatBoundsLike, Map as MapLibreMap } from 'maplibre-gl'
 import { Download, Route } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { createMapPreviewStyle, DEFAULT_MAP_PREVIEW_MODE } from '@/lib/tianditu'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 type LatLngTuple = [number, number]
@@ -37,8 +38,6 @@ const props = defineProps<{
   subtitle?: string
   filename?: string
 }>()
-const BASEMAP_SOURCE_ID = 'basemap'
-const BASEMAP_LAYER_ID = 'basemap-layer'
 const TERRAIN_SOURCE_ID = 'terrain-source'
 const HILLSHADE_SOURCE_ID = 'hillshade-source'
 const HILLSHADE_LAYER_ID = 'hillshade-layer'
@@ -48,10 +47,8 @@ const ROUTE_COLOR = '#ea580c'
 const EXPORT_SCALE = 3
 const UPLOAD_EXPORT_SCALE = 2
 const JPEG_EXPORT_QUALITY = 0.84
-const MAPTILER_KEY = (import.meta.env.VITE_MAPTILER_KEY || '').trim()
-const MAPTILER_STYLE_URL = MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(MAPTILER_KEY)}`
-  : ''
+const TIANDITU_KEY = (import.meta.env.VITE_TIANDITU_KEY || '').trim()
+const MAP_PREVIEW_MODE = DEFAULT_MAP_PREVIEW_MODE
 const EXPORT_SAFE_AREA = {
   top: 0.16,
   right: 0.12,
@@ -62,29 +59,6 @@ const PITCH_TOP_COMPENSATION = 0.08
 const CAMERA_DOWNWARD_OFFSET = 0.06
 const MIN_3D_ELEVATION_RANGE_METERS = 60
 const MIN_3D_ELEVATION_PER_KM_METERS = 18
-
-const createMapStyle = () => ({
-  version: 8 as const,
-  sources: {
-    [BASEMAP_SOURCE_ID]: {
-      type: 'raster' as const,
-      tiles: ['https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}@2x.png'],
-      tileSize: 512,
-      attribution: '&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap contributors',
-      maxzoom: 20,
-    },
-  },
-  layers: [
-    {
-      id: BASEMAP_LAYER_ID,
-      type: 'raster' as const,
-      source: BASEMAP_SOURCE_ID,
-      paint: {
-        'raster-resampling': 'nearest' as const,
-      },
-    },
-  ],
-})
 
 const PNG_EXPORT_MIME_TYPE = 'image/png'
 const JPEG_EXPORT_MIME_TYPE = 'image/jpeg'
@@ -369,7 +343,10 @@ const ensureMap = async () => {
 
   map = new maplibre.Map({
     container: mapContainer.value,
-    style: MAPTILER_STYLE_URL || createMapStyle(),
+    style: createMapPreviewStyle({
+      tiandituKey: TIANDITU_KEY,
+      mode: MAP_PREVIEW_MODE,
+    }),
     attributionControl: false,
     interactive: false,
     pitch: 0,
